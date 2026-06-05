@@ -15,6 +15,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+    "expo-env.d.ts",
+    "src/components/Character.jsx"
+, "src/components/GameSprite.jsx", "src/components/CharacterController.jsx", "src/stores/playerStore.js", "src/stores/authStore.js"  ]
 }

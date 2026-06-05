@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -14,7 +13,6 @@ export default function LoginPage() {
 
     // ⏱️ Live Username Validation Effect (Debounced)
     useEffect(() => {
-        // Clear errors instantly if the user clears the box
         if (!username.trim()) {
             setUsernameError("");
             return;
@@ -22,7 +20,6 @@ export default function LoginPage() {
 
         setIsCheckingUsername(true);
 
-        // Wait 500ms after the last keystroke before querying the DB
         const delayDebounceFn = setTimeout(async () => {
             try {
                 const { data, error } = await supabase
@@ -45,27 +42,40 @@ export default function LoginPage() {
             }
         }, 500);
 
-        // Cleanup function clears the timer if the user types another character
         return () => clearTimeout(delayDebounceFn);
     }, [username]);
 
-
+    // 🔑 Log In Using Username + Password 
     async function signIn() {
-        if (!email || !password) return Alert.alert("Error", "Please fill in all fields");
+        if (!username.trim() || !password) {
+            return Alert.alert("Error", "Please fill in all fields");
+        }
         setLoading(true);
         
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            // Derive the predictable dummy email from the username
+            const derivedEmail = `${username.trim().toLowerCase()}@yourgame.local`;
 
-        setLoading(false);
-        if (error) Alert.alert("Login Failed", error.message);
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email: derivedEmail,
+                password,
+            });
+
+            if (authError) throw authError;
+
+        } catch (error: any) {
+            const msg = error.message.includes("Invalid login credentials") 
+                ? "Incorrect username or password." 
+                : error.message;
+            Alert.alert("Login Failed", msg);
+        } finally {
+            setLoading(false);
+        }
     }
 
+    // 📝 Register Using Username + Password
     async function signUp() {
-        // Prevent registration if fields are missing or the live check failed
-        if (!username || !email || !password) {
+        if (!username.trim() || !password) {
             return Alert.alert("Error", "Please fill in all fields");
         }
         if (usernameError.includes("taken")) {
@@ -75,8 +85,10 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
+            const dummyEmail = `${username.trim().toLowerCase()}@yourgame.local`;
+
             const { data, error: authError } = await supabase.auth.signUp({
-                email: email.trim().toLowerCase(),
+                email: dummyEmail,
                 password,
             });
 
@@ -88,6 +100,7 @@ export default function LoginPage() {
                 return;
             }
 
+            // Matches your columns: inserts only 'id' and 'username'
             const { error: profileError } = await supabase
                 .from("profiles")
                 .insert({
@@ -107,14 +120,18 @@ export default function LoginPage() {
     }
 
     return (
-        <View style={{ padding: 20, justifyContent: 'center', flex: 1 }}>
-            {/* Username Input with Validation Feedback */}
+        <View style={{ padding: 20, justifyContent: 'center', flex: 1, backgroundColor: '#111' }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+                Game Server Auth
+            </Text>
+
             <TextInput
                 placeholder="Username"
+                placeholderTextColor="#666"
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
-                style={{ borderBottomWidth: 1, padding: 8 }}
+                style={{ borderBottomWidth: 1, borderColor: '#444', color: '#fff', padding: 8, fontSize: 16 }}
             />
             {isCheckingUsername && <Text style={{ color: 'gray', fontSize: 12, marginTop: 4 }}>Checking availability...</Text>}
             {!isCheckingUsername && usernameError ? (
@@ -129,35 +146,29 @@ export default function LoginPage() {
             ) : <View style={{ height: 20 }} />}
 
             <TextInput
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={{ borderBottomWidth: 1, marginBottom: 15, padding: 8 }}
-            />
-
-            <TextInput
                 placeholder="Password"
+                placeholderTextColor="#666"
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
                 autoCapitalize="none"
-                style={{ borderBottomWidth: 1, marginBottom: 25, padding: 8 }}
+                style={{ borderBottomWidth: 1, borderColor: '#444', color: '#fff', marginBottom: 25, padding: 8, fontSize: 16 }}
             />
 
             <Button
                 title={loading ? "Loading..." : "Login"}
                 onPress={signIn}
                 disabled={loading}
+                color="#38bdf8"
             />
 
-            <View style={{ height: 10 }} />
+            <View style={{ height: 12 }} />
 
             <Button
-                title={loading ? "Loading..." : "Register"}
+                title={loading ? "Loading..." : "Register New Character"}
                 onPress={signUp}
                 disabled={loading || usernameError.includes("❌")}
+                color="#22c55e"
             />
         </View>
     );
