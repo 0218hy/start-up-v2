@@ -2,8 +2,13 @@ import { useEffect } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useAuthStore } from "@/stores/authStore"; 
 import { supabase } from "@/lib/supabase";
+import { useFonts } from "expo-font";
 
 export default function RootLayout() {
+  const [loaded, error] = useFonts({
+    "SuperJoyful": require("../assets/fonts/SuperJoyful.ttf"), // Map path to font location
+  });
+
   const { user, loading, setUser, setLoading } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -26,12 +31,10 @@ export default function RootLayout() {
   // 2. Route Protection Middleware layer
   useEffect(() => {
     if (loading) return; 
-
-    const typedSegments = segments as string[];
     
     // Check if user is currently on the root index page
-    const isAtRoot = typedSegments.length === 0 || typedSegments[0] === "";
-    const inAuthGroup = typedSegments.includes("(auth)") || typedSegments.includes("login");
+    const isAtRoot = segments.length === 0 || segments[0] === "";
+    const inAuthGroup = segments.includes("(auth)") || segments.includes("login");
 
     if (!user) {
       // If not logged in, force them to login from ANY screen (including root)

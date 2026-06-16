@@ -17,5 +17,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "src/components/Character.jsx"
-, "src/components/GameSprite.jsx", "src/components/CharacterController.jsx", "src/stores/playerStore.js", "src/stores/authStore.js"  ]
+, "src/components/GameSprite.jsx", "src/components/CharacterController.jsx", "src/stores/playerStore.js", "src/stores/authStore.js", "src/app/world/[id].jsx", "src/stores/worldStore.js", "src/app/_layout.jsx", "src/app/create_world.jsx", "src/app/join_world.jsx", "src/app/index.jsx", "src/app/login.jsx", "src/app/(tabs)/lobby.jsx", "src/components/lobby/WorldCard.jsx"  ]
 }

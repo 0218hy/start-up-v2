@@ -1,5 +1,5 @@
 import { Button, View } from "react-native";
-import { usePlayerStore } from "../../stores/playerStore";
+import { usePlayerStore } from "../stores/playerStore";
 
 export default function Controls() {
   const move = usePlayerStore((s) => s.move);
@@ -11,7 +11,7 @@ export default function Controls() {
 
       <View style={{ flexDirection: "row" }}>
         <Button title="◀" onPress={() => move("left")} />
-        <View style={{ width: 20 }} />
+        <View style={{ width: 40 }} />
         <Button title="▶" onPress={() => move("right")} />
       </View>
 

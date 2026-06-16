@@ -35,7 +35,7 @@ export default function LoginPage() {
                 } else {
                     setUsernameError("✅ Username is available!");
                 }
-            } catch (err: any) {
+            } catch (err) {
                 console.error("Live check failed:", err.message);
             } finally {
                 setIsCheckingUsername(false);
@@ -63,7 +63,7 @@ export default function LoginPage() {
 
             if (authError) throw authError;
 
-        } catch (error: any) {
+        } catch (error) {
             const msg = error.message.includes("Invalid login credentials") 
                 ? "Incorrect username or password." 
                 : error.message;
@@ -112,7 +112,7 @@ export default function LoginPage() {
 
             Alert.alert("Success", "Account created and logged in!");
 
-        } catch (error: any) {
+        } catch (error) {
             Alert.alert("Registration Error", error.message);
         } finally {
             setLoading(false);
