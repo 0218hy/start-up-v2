@@ -6,6 +6,8 @@ import { ITEM_CATALOG } from "../constants/catalog";
 
 export function useWorldTiles(worldId) {
   const [tiles, setTiles] = useState([]);
+  const [isPlacing, setIsPlacing] = useState(false);
+  const [isExpanding, setIsExpanding] = useState(false);
   const setGlobalTiles = useWorldStore((state) => state.setTiles);
 
   const syncTiles = (tilesData) => {
@@ -47,85 +49,95 @@ export function useWorldTiles(worldId) {
   };
 
   const expandTerritory = async (direction) => {
-    if (!worldId) return;
+    if (!worldId || isExpanding) return;
 
-    const { gridX: playerX, gridZ: playerZ } = usePlayerStore.getState();
+    try {
+      setIsExpanding(true);
+      const { gridX: playerX, gridZ: playerZ } = usePlayerStore.getState();
 
-    let targetX = playerX;
-    let targetZ = playerZ;
+      let targetX = playerX;
+      let targetZ = playerZ;
 
-    switch (direction) {
-      case "north": targetZ = playerZ - 1; break;
-      case "south": targetZ = playerZ + 1; break;
-      case "west":  targetX = playerX - 1; break;
-      case "east":  targetX = playerX + 1; break;
-    }
+      switch (direction) {
+        case "north": targetZ = playerZ - 1; break;
+        case "south": targetZ = playerZ + 1; break;
+        case "west":  targetX = playerX - 1; break;
+        case "east":  targetX = playerX + 1; break;
+      }
 
-    if (targetX < -25 || targetX > 25 || targetZ < -25 || targetZ > 25) {
-      console.warn("Expansion halted: World boundary edge reached!");
-      return;
-    }
+      if (targetX < -25 || targetX > 25 || targetZ < -25 || targetZ > 25) {
+        console.warn("Expansion halted: World boundary edge reached!");
+        return;
+      }
 
-    const newTile = {
-      world_id: worldId,
-      grid_x: targetX,
-      grid_z: targetZ,
-      tile_type: "grass",
-      furniture_type: null
-    };
+      const newTile = {
+        world_id: worldId,
+        grid_x: targetX,
+        grid_z: targetZ,
+        tile_type: "grass",
+        furniture_type: null
+      };
 
-    const { error } = await supabase
-      .from("world_tiles")
-      .upsert([newTile], { onConflict: "world_id,grid_x,grid_z" });
+      const { error } = await supabase
+        .from("world_tiles")
+        .upsert([newTile], { onConflict: "world_id,grid_x,grid_z" });
 
-    if (error) {
-      console.error("Expansion failed:", error.message);
-    } else {
-      loadWorldData();
-    }
-  };
-
-  const placeItem = async (gridX, gridZ, selectedItemId) => {
-    console.log("📡 Hook: placeItem activated with parameters:", { gridX, gridZ, selectedItemId });
-
-    if (!worldId || !selectedItemId) return;
-
-    const itemDetails = ITEM_CATALOG[selectedItemId];
-    if (!itemDetails) {
-      console.log(`❌ Hook Error: Looked up ID "${selectedItemId}" in ITEM_CATALOG but found nothing!`);
-      return;
-    }
-
-    console.log("📦 Hook: Catalog match found!", itemDetails);
-
-    let updatePayload = {
-      world_id: worldId,
-      grid_x: gridX,
-      grid_z: gridZ,
-      placed_at: new Date().toISOString()
-    };
-
-    if (itemDetails.category === "floor") {
-      updatePayload.tile_type = selectedItemId.replace("tile_", "");
-    } else if (itemDetails.category === "furniture") {
-      updatePayload.furniture_type = selectedItemId;
-    }
-
-    console.log("🚀 Hook: Shipping payload to Supabase:", updatePayload);
-
-    const { error } = await supabase
-      .from("world_tiles")
-      .upsert(updatePayload, { onConflict: "world_id,grid_x,grid_z" });
-
-    if (error) {
-      console.log("🚨 Supabase Database Error Response:", error.message);
-    } else {
-      console.log("✅ Supabase Success: Row upserted smoothly!");
-      loadWorldData();
+      if (error) {
+        console.error("Expansion failed:", error.message);
+      } else {
+        await loadWorldData();
+      }
+    } catch (err) {
+      console.error("Territory expand exception:", err.message);
+    } finally {
+      setIsExpanding(false);
     }
   };
 
-  // Keep database listeners attached automatically when component mounts
+  const placeItem = async (gridX, gridZ, selectedItemId, onResetBuildCallback) => {
+    if (!worldId || !selectedItemId || isPlacing) return;
+
+    try {
+      setIsPlacing(true);
+      console.log("📡 Hook: placeItem activated with parameters:", { gridX, gridZ, selectedItemId });
+
+      const itemDetails = ITEM_CATALOG[selectedItemId];
+      if (!itemDetails) {
+        console.log(`❌ Hook Error: Looked up ID "${selectedItemId}" in ITEM_CATALOG but found nothing!`);
+        return;
+      }
+
+      let updatePayload = {
+        world_id: worldId,
+        grid_x: gridX,
+        grid_z: gridZ,
+        placed_at: new Date().toISOString()
+      };
+
+      if (itemDetails.category === "floor") {
+        updatePayload.tile_type = selectedItemId.replace("tile_", "");
+      } else if (itemDetails.category === "furniture") {
+        updatePayload.furniture_type = selectedItemId;
+      }
+
+      const { error } = await supabase
+        .from("world_tiles")
+        .upsert(updatePayload, { onConflict: "world_id,grid_x,grid_z" });
+
+      if (error) {
+        console.log("🚨 Supabase Database Error Response:", error.message);
+      } else {
+        console.log("✅ Supabase Success: Row upserted smoothly!");
+        await loadWorldData();
+        if (onResetBuildCallback) onResetBuildCallback();
+      }
+    } catch (err) {
+      console.error("Item deployment exception:", err.message);
+    } finally {
+      setIsPlacing(false);
+    }
+  };
+
   useEffect(() => {
     if (!worldId) return;
     
@@ -150,5 +162,5 @@ export function useWorldTiles(worldId) {
     };
   }, [worldId]);
 
-  return { tiles, expandTerritory, placeItem };
+  return { tiles, isPlacing, isExpanding, expandTerritory, placeItem };
 }

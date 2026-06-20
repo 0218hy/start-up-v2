@@ -8,56 +8,30 @@ import CameraRig from "../../components/Camera";
 import Controls from "../../components/MovementControls";
 import Player from "../../components/Player";
 import InventoryBar from "../../components/world/InventoryBar";
+import SecretChatButton from "../../components/world/SecretChatButton";
 import TileMap from "../../components/world/TileMap";
-import SecretChatButton from "../../components/world/SecretChatButton"
 
+import { useAuthStore } from "@/stores/authStore";
 import { useWorldTiles } from "../../hooks/useWorldTiles";
 import { useBuildStore } from "../../stores/buildStore";
-import { useAuthStore } from "@/stores/authStore";
+import { usePlayerStore } from "@/stores/playerStore";
 
 export default function WorldPage() {
   const { id: worldId } = useLocalSearchParams();
   const router = useRouter();
-  const insets = useSafeAreaInsets(); // Dynamically pushes the layout below physical hardware boundaries
+  const insets = useSafeAreaInsets();
 
-  const { tiles, expandTerritory, placeItem } = useWorldTiles(worldId);
+  const { tiles, isPlacing, isExpanding, expandTerritory, placeItem } = useWorldTiles(worldId);
   const [selectorGrid, setSelectorGrid] = useState({ x: 0, z: 0 });
-  const [isPlacing, setIsPlacing] = useState(false);
-  const [isExpanding, setIsExpanding] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const selectedItemId = useBuildStore((state) => state.selectedItemId);
   const resetBuild = useBuildStore((state) => state.resetBuild);
 
-  const handleOnPlaceConfirm = async () => {
-    if (!selectedItemId || isPlacing) return;
-    try {
-      setIsPlacing(true);
-      await placeItem(selectorGrid.x, selectorGrid.z, selectedItemId);
-      resetBuild();
-    } catch (err) {
-      console.error("Failed to place item:", err);
-    } finally {
-      setIsPlacing(false);
-    }
-  };
-
-  const handleExpand = async (direction) => {
-    if (isExpanding) return;
-    try {
-      setIsExpanding(true);
-      await expandTerritory(direction);
-    } catch (err) {
-      console.error("Expansion error:", err);
-    } finally {
-      setIsExpanding(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
 
-      {/* 🛠️ IMPROVED OVERLAY HEADER: Generous, clear tap targets */}
+      {/* 🛠️ OVERLAY HEADER: Clear tap targets */}
       <SafeAreaView edges={["top"]} style={styles.absoluteHeader}>
         <TouchableOpacity
           activeOpacity={0.7}
@@ -70,14 +44,14 @@ export default function WorldPage() {
         <SecretChatButton worldId={worldId} user={user} />
       </SafeAreaView>
 
-      {/* Directional Grid Expansion Panel - Shifted dynamically to drop below the safe header zone */}
+      {/* Directional Grid Expansion Panel */}
       <View style={[styles.expansionPanel, { top: insets.top + 70 }]}>
         <Text style={styles.panelTitle}>Expand Grid</Text>
         <View style={styles.row}>
           <TouchableOpacity
             disabled={isExpanding}
             style={[styles.expBtn, isExpanding && styles.disabledBtn]}
-            onPress={() => handleExpand("north")}
+            onPress={() => expandTerritory("north")}
           >
             <Text style={styles.btnText}>N</Text>
           </TouchableOpacity>
@@ -86,14 +60,14 @@ export default function WorldPage() {
           <TouchableOpacity
             disabled={isExpanding}
             style={[styles.expBtn, isExpanding && styles.disabledBtn]}
-            onPress={() => handleExpand("west")}
+            onPress={() => expandTerritory("west")}
           >
             <Text style={styles.btnText}>W</Text>
           </TouchableOpacity>
           <TouchableOpacity
             disabled={isExpanding}
             style={[styles.expBtn, isExpanding && styles.disabledBtn]}
-            onPress={() => handleExpand("east")}
+            onPress={() => expandTerritory("east")}
           >
             <Text style={styles.btnText}>E</Text>
           </TouchableOpacity>
@@ -102,7 +76,7 @@ export default function WorldPage() {
           <TouchableOpacity
             disabled={isExpanding}
             style={[styles.expBtn, isExpanding && styles.disabledBtn]}
-            onPress={() => handleExpand("south")}
+            onPress={() => expandTerritory("south")}
           >
             <Text style={styles.btnText}>S</Text>
           </TouchableOpacity>
@@ -128,13 +102,23 @@ export default function WorldPage() {
         <CameraRig />
       </Canvas>
 
+      {/* Loading Overlay Spinner Block */}
       {isPlacing && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#3b82f6" />
         </View>
       )}
 
-      <InventoryBar onPlaceClick={handleOnPlaceConfirm} />
+      {/* Inventory Bar and Controls Handlers */}
+      <InventoryBar
+        onPlaceClick={() => {
+          // 💡 Pull the current real-time coordinates of your character from the player store directly
+          const { gridX: currentX, gridZ: currentZ } = usePlayerStore.getState();
+
+          // Pass those coordinates to the place item script
+          placeItem(currentX, currentZ, selectedItemId, resetBuild);
+        }}
+      />
       <Controls setSelectorGrid={setSelectorGrid} />
     </View>
   );
@@ -157,9 +141,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  // Boosted target dimensions to clear fat-finger mistakes
   backButton: {
-    backgroundColor: "rgba(30, 41, 59, 0.9)", // Sleek glass slate
+    backgroundColor: "rgba(30, 41, 59, 0.9)",
     minWidth: 100,
     height: 48,
     justifyContent: "center",
@@ -173,27 +156,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  chatShortcutBtn: {
-    backgroundColor: "#0284c7", // Deep vibrant sky blue
-    minWidth: 140,
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 24,
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 5,
-  },
   backButtonText: {
     color: "#cbd5e1",
     fontWeight: "700",
-    fontSize: 14,
-  },
-  chatButtonText: {
-    color: "#ffffff",
-    fontWeight: "800",
     fontSize: 14,
   },
   expansionPanel: {
@@ -221,7 +186,7 @@ const styles = StyleSheet.create({
   },
   expBtn: {
     backgroundColor: "#2563eb",
-    width: 44, // Expanded touch sizes for game direction navigation keys
+    width: 44,
     height: 44,
     justifyContent: "center",
     alignItems: "center",
