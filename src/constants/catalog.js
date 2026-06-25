@@ -1,9 +1,9 @@
-export const SPRITE_SHEETS = {
-  tile_1: require("../assets/sprites/iso_tile_1.png"),
-  tile_2: require("../assets/sprites/iso_tile_2.png"),
-  furniture_bakery: require("../assets/sprites/furniture.png"),
-  food: require("../assets/sprites/food_1.png"),
-};
+// export const SPRITE_SHEETS = {
+//   tile_1: require("../assets/sprites/iso_tile_1.png"),
+//   tile_2: require("../assets/sprites/iso_tile_2.png"),
+//   furniture_bakery: require("../assets/sprites/furniture.png"),
+//   food: require("../assets/sprites/food_1.png"),
+// };
 
 
 export const ITEM_CATALOG = {
