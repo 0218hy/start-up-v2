@@ -5,7 +5,6 @@ import { VideoView } from "expo-video";
 import React, { Suspense, useEffect, useState, useMemo } from "react";
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAssets } from "expo-asset";
 import * as THREE from "three";
 
 // Custom Game Engine Elements
@@ -30,26 +29,16 @@ export default function WorldPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // 🚀 WEB FIX A: Safe pre-resolution of network assets via expo-asset hooks
-  const [assets] = useAssets([
-    require("../../assets/sprites/iso_tile_1.png"),
-    require("../../assets/sprites/iso_tile_2.png"),
-    require("../../assets/sprites/furniture.png"),
-    require("../../assets/sprites/food_1.png"),
-  ]);
-
-  // 🚀 WEB FIX B: Convert platform-dependent assets to standard WebGL compatible textures
+  // 🚀 WEB FIX: Clean, absolute paths mapped directly to your public folder root!
   const texturesCatalog = useMemo(() => {
-    if (!assets) return null;
-    
     const loader = new THREE.TextureLoader();
     return {
-      tile_1: loader.load(assets[0].localUri || assets[0].uri),
-      tile_2: loader.load(assets[1].localUri || assets[1].uri),
-      furniture_bakery: loader.load(assets[2].localUri || assets[2].uri),
-      food: loader.load(assets[3].localUri || assets[3].uri),
+      tile_1: loader.load("/assets/sprites/iso_tile_1.png"),
+      tile_2: loader.load("/assets/sprites/iso_tile_2.png"),
+      furniture_bakery: loader.load("/assets/sprites/furniture.png"),
+      food: loader.load("/assets/sprites/food_1.png"),
     };
-  }, [assets]);
+  }, []);
 
   const {
     tiles,
@@ -156,7 +145,6 @@ export default function WorldPage() {
             <ambientLight intensity={0.9} />
             <directionalLight position={[15, 25, 15]} intensity={0.5} />
             <Suspense fallback={null}>
-              {/* 🚀 WEB FIX C: Only load the grid mapping tree once webGL textures are resolved */}
               {texturesCatalog && (
                 <TileMap 
                   tiles={tiles} 
@@ -175,7 +163,6 @@ export default function WorldPage() {
               <View style={styles.floatingBubble}>
 
                 {selectedWorldTile.furniture_type ? (
-                  /* 🛋️ MODE A: Tile has furniture -> Object Controls */
                   <View style={{ width: "100%", alignItems: "center" }}>
                     <Text style={styles.bubbleTitle}>Furniture Options</Text>
 
@@ -203,7 +190,6 @@ export default function WorldPage() {
                     </View>
                   </View>
                 ) : (
-                  /* 🍃 MODE B: Tile is empty -> Tile Removal Controls */
                   <View style={{ width: "100%", alignItems: "center" }}>
                     <Text style={styles.bubbleTitle}>Empty Tile Options</Text>
 
@@ -266,4 +252,6 @@ const styles = StyleSheet.create({
   bubbleBtnText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
   bubbleClose: { marginTop: 10, paddingVertical: 4 },
   closeText: { color: "#64748b", fontSize: 12, fontWeight: "600" }
-}); // 🚀 SYNTAX FIX: Successfully closed the StyleSheet object construct blocks!
+});
+
+// 🚀 CLEANUP: The non-web fallback declarations (`SPRITE_SHEETS`, `ITEM_CATALOG`) are cleanly excised from this view structure file!
