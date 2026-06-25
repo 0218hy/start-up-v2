@@ -1,102 +1,122 @@
+// 📁 src/components/world/FloorTile.jsx
 import React, { useMemo } from "react";
 import { TILE_SIZE, toIso } from "../../utils/iso";
 import { ITEM_CATALOG } from "../../constants/catalog";
 
+const SHADER_DEFINITION = {
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D uTexture;
+    uniform vec4 uUvTransform; 
+    varying vec2 vUv;
+    void main() {
+      vec2 transformedUv = vUv * uUvTransform.zw + uUvTransform.xy;
+      vec4 texColor = texture2D(uTexture, transformedUv);
+      if (texColor.a < 0.1) discard; 
+      gl_FragColor = texColor;
+    }
+  `
+};
+
 export default function FloorTile({ 
-  tileIndex = 0, 
-  furnitureType = null, 
-  gridX, 
-  gridZ,
-  floorTexture,       
-  furnitureTexture    
+  tileData,
+  texturesCatalog, 
+  onTileTap,
 }) {
-  const cols = 4;
-  const rows = 4;
-  const fur_cols = 3;
-  const fur_rows = 3;
+  const { 
+    grid_x: gridX, 
+    grid_z: gridZ, 
+    tile_type: tileType,
+    // 🚀 UNIFIED: Look for a generic item field (or fallback to old furniture fields if migrating data)
+    furniture_type: itemType = tileData.item_type || tileData.furniture_type || tileData.food_type, 
+    furniture_rotation: itemRotation = 0
+  } = tileData;
 
   const isoPos = toIso(gridX, gridZ);
 
-  // 📐 1. Dynamic Isometric Layer Sorting Math
-  // Baseline start at 10 to give other UI elements room below it.
-  // Higher coordinates mean closer to the screen, pushing the renderOrder up.
-  const baseOrder = 10 + (gridX + gridZ); 
+  const floorOrder = 10 + (gridX + gridZ); 
+  const objectOrder = 50 + (gridX + gridZ); // 🚀 Unified layer depth order
 
-  // Calculate UV offsets cleanly
+  // Fetch structural layout metrics out of master catalog
+  const floorConfig = ITEM_CATALOG[`tile_${tileType}`];
+  
+  // 🚀 FIXED: Added the missing configuration definition line
+  const objectConfig = itemType ? ITEM_CATALOG[itemType] : null; 
+
+  // Track down active graphic source pointers inside preloaded bundle array
+  const activeFloorTexture = floorConfig ? texturesCatalog[floorConfig.sheet] : null;
+  const activeObjectTexture = objectConfig ? texturesCatalog[objectConfig.sheet] : null;
+
   const floorUV = useMemo(() => {
-    const col = tileIndex % cols;
-    const row = Math.floor(tileIndex / cols);
-    return [col / cols, 1 - (row + 1) / rows, 1 / cols, 1 / rows];
-  }, [tileIndex]);
+    if (!floorConfig) return [0, 0, 1, 1];
+    const index = floorConfig.spriteIndex || 0;
+    const itemCols = floorConfig.cols || 16;
+    const itemRows = floorConfig.rows || 1;
 
-  const furnitureUV = useMemo(() => {
-    if (!furnitureType || !ITEM_CATALOG[furnitureType]) return [0, 0, 0, 0];
-    const idx = ITEM_CATALOG[furnitureType].spriteIndex;
-    const col = idx % fur_cols;
-    const row = Math.floor(idx / fur_cols);
-    return [col / fur_cols, 1 - (row + 1) / fur_rows, 1 / fur_cols, 1 / fur_rows];
-  }, [furnitureType]);
+    const col = index % itemCols;
+    const row = Math.floor(index / itemCols);
+    
+    return [col / itemCols, 1 - (row + 1) / itemRows, 1 / itemCols, 1 / itemRows];
+  }, [floorConfig]);
 
-  const shaderDefinition = {
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D uTexture;
-      uniform vec4 uUvTransform; 
-      varying vec2 vUv;
-      void main() {
-        vec2 transformedUv = vUv * uUvTransform.zw + uUvTransform.xy;
-        vec4 texColor = texture2D(uTexture, transformedUv);
-        if (texColor.a < 0.1) discard; 
-        gl_FragColor = texColor;
-      }
-    `
-  };
+  const objectUV = useMemo(() => {
+    if (!objectConfig) return [0, 0, 0, 0];
+    const itemCols = objectConfig.cols || 4;
+    const itemRows = objectConfig.rows || 4;
+
+    const col = objectConfig.spriteIndex % itemCols;
+    
+    // 🚀 UNIFIED: Use rotation if it's furniture, otherwise default to 0 for flat items
+    const row = objectConfig.category === "furniture" ? itemRotation : 0; 
+    
+    return [col / itemCols, 1 - (row + 1) / itemRows, 1 / itemCols, 1 / itemRows];
+  }, [objectConfig, itemRotation]);
 
   return (
-    <group position={[isoPos.x, 0, isoPos.z]}>
+    <group 
+      position={[isoPos.x, 0, isoPos.z]}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onTileTap) onTileTap(tileData);
+      }}
+    >
       {/* 1. Ground Layer */}
-      <mesh 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, 0, 0]}
-        renderOrder={baseOrder} // 👑 Applied dynamic back-to-front sorting
-      >
-        <planeGeometry args={[TILE_SIZE * 2 * 1.25, TILE_SIZE * 2 * 1.25]} />
-        <shaderMaterial
-          transparent
-          vertexShader={shaderDefinition.vertexShader}
-          fragmentShader={shaderDefinition.fragmentShader}
-          uniforms={{
-            uTexture: { value: floorTexture },
-            uUvTransform: { value: floorUV }
-          }}
-          depthTest={false}  
-          depthWrite={false} 
-        />
-      </mesh>
+      {activeFloorTexture && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} renderOrder={floorOrder}>
+          <planeGeometry args={[TILE_SIZE * 2 * 1.15, TILE_SIZE * 2 * 1.15]} />
+          <shaderMaterial
+            transparent
+            vertexShader={SHADER_DEFINITION.vertexShader}
+            fragmentShader={SHADER_DEFINITION.fragmentShader}
+            uniforms={{
+              uTexture: { value: activeFloorTexture },
+              uUvTransform: { value: floorUV }
+            }}
+            depthTest={false}  
+            depthWrite={false} 
+          />
+        </mesh>
+      )}
 
-      {/* 2. Furniture Decor Layer */}
-      {furnitureType && ITEM_CATALOG[furnitureType] && (
-        <mesh 
-          rotation={[-Math.PI / 2, 0, 0]} 
-          position={[0, 0.01, 0]}         
-          renderOrder={baseOrder + 1} // 👑 Always exactly 1 layer higher than its own floor base
-        >
+      {/* 2. Unified Object Layer (Furniture, Food, Decor, etc.) */}
+      {itemType && objectConfig && activeObjectTexture && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, TILE_SIZE / 2, 0]} renderOrder={objectOrder}>
           <planeGeometry args={[TILE_SIZE * 2, TILE_SIZE * 2]} />
           <shaderMaterial
             transparent
-            vertexShader={shaderDefinition.vertexShader}
-            fragmentShader={shaderDefinition.fragmentShader}
-            uniforms={{
-              uTexture: { value: furnitureTexture },
-              uUvTransform: { value: furnitureUV }
+            vertexShader={SHADER_DEFINITION.vertexShader}
+            fragmentShader={SHADER_DEFINITION.fragmentShader}
+            uniforms={{ 
+              uTexture: { value: activeObjectTexture }, 
+              uUvTransform: { value: objectUV } 
             }}
-            depthTest={false}  
+            depthTest={false} 
             depthWrite={false} 
           />
         </mesh>

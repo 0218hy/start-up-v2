@@ -1,11 +1,12 @@
 import { useAuthStore } from "@/stores/authStore";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import WorldCard from "../../components/lobby/WorldCard";
 import { supabase } from "../../lib/supabase";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { introVideoPlayer } from "../../utils/introVideo";
 
 export default function Landing() {
     const [worlds, setWorlds] = useState([]);
@@ -49,14 +50,14 @@ export default function Landing() {
     return (
         <View style={styles.flexContainer}>
             <LinearGradient
-                colors={["#FFEDD5", "#FED7AA", "#FEE2E2"]} 
+                colors={["#FFEDD5", "#FED7AA", "#FEE2E2"]}
                 locations={[0, 0.5, 1]}
                 style={StyleSheet.absoluteFillObject}
             />
 
             <SafeAreaView edges={["top"]} style={styles.flexContainer}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    
+
                     <View style={styles.headerSection}>
                         {/* Custom Super Joyful typography applied here */}
                         <Text style={styles.mainHeading}>The Twilight Lounge</Text>
@@ -79,7 +80,14 @@ export default function Landing() {
                                     <View key={w.world_id} style={styles.cardWrapper}>
                                         <WorldCard
                                             world={w.worlds}
-                                            onPress={() => router.push(`world/${w.worlds.id}`)}
+                                            onPress={() => {
+                                                // 🔥 FIXED: Assign 0 to currentTime directly instead of invoking seekTo()
+                                                introVideoPlayer.currentTime = 0;
+                                                introVideoPlayer.play();
+
+                                                // Move to the world screen while the video is already actively playing frames
+                                                router.push(`world/${w.worlds.id}`);
+                                            }}
                                         />
                                     </View>
                                 );
@@ -89,26 +97,26 @@ export default function Landing() {
                 </ScrollView>
 
                 <View style={styles.actionDock}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         activeOpacity={0.85}
-                        style={[styles.celShadedButton, styles.createBtn]} 
+                        style={[styles.celShadedButton, styles.createBtn]}
                         onPress={() => router.push("../create_world")}
                     >
                         {/* Applied custom font mapping option to action targets */}
                         <Text style={styles.btnTextLight}>Create New Space</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         activeOpacity={0.85}
-                        style={[styles.celShadedButton, styles.joinBtn]} 
+                        style={[styles.celShadedButton, styles.joinBtn]}
                         onPress={() => router.push("../join_world")}
                     >
                         <Text style={styles.btnTextDark}>Join Existing Space</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         activeOpacity={0.7}
-                        style={styles.signOutBtn} 
+                        style={styles.signOutBtn}
                         onPress={async () => await supabase.auth.signOut()}
                     >
                         <Text style={styles.signOutText}>Leave Session Safely</Text>
@@ -147,15 +155,15 @@ const styles = StyleSheet.create({
     mainHeading: {
         fontFamily: "SuperJoyful", // Activates custom font assets
         fontSize: 34,              // Bouncy fonts look best at slightly larger text scaling sizes
-        color: "#431407", 
+        color: "#431407",
         textAlign: "center",
-        textShadowColor: "rgba(251, 191, 36, 0.4)", 
+        textShadowColor: "rgba(251, 191, 36, 0.4)",
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 6,
     },
     subHeading: {
         fontSize: 15,
-        color: "#9A3412", 
+        color: "#9A3412",
         textAlign: "center",
         marginTop: 10,
         lineHeight: 22,
@@ -174,11 +182,11 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     emptyState: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)", 
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         padding: 28,
         borderRadius: 24,
         borderWidth: 2,
-        borderColor: "#FDBA74", 
+        borderColor: "#FDBA74",
         alignItems: "center",
     },
     emptyText: {
@@ -209,12 +217,12 @@ const styles = StyleSheet.create({
         shadowRadius: 0,
     },
     createBtn: {
-        backgroundColor: "#EA580C", 
+        backgroundColor: "#EA580C",
         borderColor: "#9A3412",
         shadowColor: "#9A3412",
     },
     joinBtn: {
-        backgroundColor: "#FEF08A", 
+        backgroundColor: "#FEF08A",
         borderColor: "#CA8A04",
         shadowColor: "#CA8A04",
     },

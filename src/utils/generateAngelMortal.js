@@ -63,8 +63,6 @@ export async function generateAngelMortalPairs(worldId, daysBeforeReveal) {
             }, { onConflict: 'world_id' });
 
         if (stateUpdateError) throw stateUpdateError;
-
-        console.log("🎯 Successfully created an Angel & Mortal loop for world:", worldId);
         return true;
     } catch (err) {
         console.error("🚨 Assignment Logic Error:", err.message);
