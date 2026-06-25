@@ -1,9 +1,12 @@
+// 📁 src/app/world.jsx
 import { Canvas } from "@react-three/fiber/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { VideoView } from "expo-video"; // 🚀 Added Video View hooks
-import React, { Suspense, useEffect, useState } from "react";
+import { VideoView } from "expo-video"; 
+import React, { Suspense, useEffect, useState, useMemo } from "react";
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAssets } from "expo-asset";
+import * as THREE from "three";
 
 // Custom Game Engine Elements
 import CameraRig from "../../components/Camera";
@@ -27,6 +30,27 @@ export default function WorldPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // 🚀 WEB FIX A: Safe pre-resolution of network assets via expo-asset hooks
+  const [assets] = useAssets([
+    require("../../assets/sprites/iso_tile_1.png"),
+    require("../../assets/sprites/iso_tile_2.png"),
+    require("../../assets/sprites/furniture.png"),
+    require("../../assets/sprites/food_1.png"),
+  ]);
+
+  // 🚀 WEB FIX B: Convert platform-dependent assets to standard WebGL compatible textures
+  const texturesCatalog = useMemo(() => {
+    if (!assets) return null;
+    
+    const loader = new THREE.TextureLoader();
+    return {
+      tile_1: loader.load(assets[0].localUri || assets[0].uri),
+      tile_2: loader.load(assets[1].localUri || assets[1].uri),
+      furniture_bakery: loader.load(assets[2].localUri || assets[2].uri),
+      food: loader.load(assets[3].localUri || assets[3].uri),
+    };
+  }, [assets]);
+
   const {
     tiles,
     isExpanding,
@@ -37,7 +61,6 @@ export default function WorldPage() {
     deleteTile
   } = useWorldTiles(worldId);
 
-  // 1. Splash Screen active sequence control flag
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [selectorGrid, setSelectorGrid] = useState({ x: 0, z: 0 });
 
@@ -47,9 +70,7 @@ export default function WorldPage() {
   const selectedWorldTile = useBuildStore((s) => s.selectedWorldTile);
   const selectWorldTile = useBuildStore((s) => s.selectWorldTile);
 
-  // 3. Catch structural end-of-play flags to drop the loading wall
   useEffect(() => {
-    // If the card-tap didn't fire it for any reason, trigger it as a failsafe
     if (!introVideoPlayer.isPlaying) {
       introVideoPlayer.play();
     }
@@ -63,14 +84,12 @@ export default function WorldPage() {
     };
   }, []);
 
-  // Explicit placement handler called ONLY when clicking the "Place" button
   const handleItemDeployment = () => {
     if (!selectedItemId) return;
     const { gridX, gridZ } = usePlayerStore.getState();
     placeItem(gridX, gridZ, selectedItemId, resetBuild);
   };
 
-  // Clean, manual selection routing
   const handleTileTapAction = (clickedTile) => {
     selectWorldTile(clickedTile);
   };
@@ -84,11 +103,10 @@ export default function WorldPage() {
           <VideoView
             player={introVideoPlayer}
             style={styles.fullScreenVideo}
-            nativeControls={false} // Hide UI playback bars for a native clean look
+            nativeControls={false} 
             resizeMode="cover"
           />
 
-          {/* Interactive Skip HUD Element */}
           <View style={styles.videoOverlay}>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -138,7 +156,14 @@ export default function WorldPage() {
             <ambientLight intensity={0.9} />
             <directionalLight position={[15, 25, 15]} intensity={0.5} />
             <Suspense fallback={null}>
-              <TileMap tiles={tiles} onTileTap={handleTileTapAction} />
+              {/* 🚀 WEB FIX C: Only load the grid mapping tree once webGL textures are resolved */}
+              {texturesCatalog && (
+                <TileMap 
+                  tiles={tiles} 
+                  texturesCatalog={texturesCatalog} 
+                  onTileTap={handleTileTapAction} 
+                />
+              )}
               <Player />
             </Suspense>
             <CameraRig />
@@ -196,7 +221,6 @@ export default function WorldPage() {
                   </View>
                 )}
 
-                {/* CLOSE/DESELECT SUB-TRIGGER */}
                 <TouchableOpacity
                   style={styles.bubbleClose}
                   onPress={() => selectWorldTile(null)}
@@ -217,46 +241,12 @@ export default function WorldPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1a1a1a" },
-
-  // 🎬 Video Placement Geometry Styles
-  videoContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
-    zIndex: 999999, // Layer over all headers, maps, and canvas buffers
-  },
-  fullScreenVideo: {
-    width: width,
-    height: height,
-  },
-  videoOverlay: {
-    position: "absolute",
-    bottom: 80,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    gap: 14
-  },
-  loadingText: {
-    color: "#64748b",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 1,
-    textTransform: "uppercase"
-  },
-  enterBtn: {
-    backgroundColor: "rgba(37, 99, 235, 0.95)",
-    paddingVertical: 14,
-    paddingHorizontal: 26,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  enterBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
+  videoContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000", zIndex: 999999 },
+  fullScreenVideo: { width: width, height: height },
+  videoOverlay: { position: "absolute", bottom: 80, left: 0, right: 0, alignItems: "center", gap: 14 },
+  loadingText: { color: "#64748b", fontSize: 13, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
+  enterBtn: { backgroundColor: "rgba(37, 99, 235, 0.95)", paddingVertical: 14, paddingHorizontal: 26, borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  enterBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   absoluteHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 99, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { backgroundColor: "rgba(30, 41, 59, 0.9)", minWidth: 100, height: 48, justifyContent: "center", alignItems: "center", borderRadius: 24, borderWidth: 1.5, borderColor: "#334155", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 },
   backButtonText: { color: "#cbd5e1", fontWeight: "700", fontSize: 14 },
@@ -276,4 +266,4 @@ const styles = StyleSheet.create({
   bubbleBtnText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
   bubbleClose: { marginTop: 10, paddingVertical: 4 },
   closeText: { color: "#64748b", fontSize: 12, fontWeight: "600" }
-});
+}); // 🚀 SYNTAX FIX: Successfully closed the StyleSheet object construct blocks!
