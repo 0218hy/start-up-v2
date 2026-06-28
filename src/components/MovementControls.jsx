@@ -5,6 +5,7 @@ import { usePlayerStore } from "../stores/playerStore";
 const JOYSTICK_SIZE = 100;
 const KNOB_SIZE = 40;
 const MAX_RADIUS = JOYSTICK_SIZE / 2;
+const MOVE_INTERVAL_MS = 320;
 
 export default function Controls() {
   const move = usePlayerStore((s) => s.move);
@@ -31,7 +32,7 @@ export default function Controls() {
       move(direction);
       moveInterval.current = setInterval(() => {
         move(direction);
-      }, 150); // Loop step pacing delay (150ms)
+      }, MOVE_INTERVAL_MS);
     }
   };
 

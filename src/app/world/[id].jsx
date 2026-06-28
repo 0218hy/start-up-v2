@@ -2,7 +2,7 @@
 import { Canvas } from "@react-three/fiber";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { VideoView } from "expo-video"; 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -20,6 +20,52 @@ import { usePlayerStore } from "@/stores/playerStore";
 import { useWorldTiles } from "../../hooks/useWorldTiles";
 import { useBuildStore } from "../../stores/buildStore";
 import { introVideoPlayer } from "../../utils/introVideo";
+import { fromIso } from "../../utils/iso";
+
+const WORLD_MIN = -25;
+const WORLD_MAX = 25;
+const TAP_WALK_INTERVAL_MS = 360;
+const DOUBLE_TAP_DELAY_MS = 240;
+
+function clampGrid(value) {
+  return Math.max(WORLD_MIN, Math.min(WORLD_MAX, value));
+}
+
+function buildGridPath(fromX, fromZ, toX, toZ) {
+  const path = [];
+  let cursorX = fromX;
+  let cursorZ = fromZ;
+  const targetX = clampGrid(toX);
+  const targetZ = clampGrid(toZ);
+
+  while (cursorX !== targetX) {
+    cursorX += Math.sign(targetX - cursorX);
+    path.push({ x: cursorX, z: cursorZ });
+  }
+
+  while (cursorZ !== targetZ) {
+    cursorZ += Math.sign(targetZ - cursorZ);
+    path.push({ x: cursorX, z: cursorZ });
+  }
+
+  return path;
+}
+
+function GroundTapPlane({ onGroundTap }) {
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.05, 0]}
+      onClick={(event) => {
+        event.stopPropagation();
+        onGroundTap(event.point);
+      }}
+    >
+      <planeGeometry args={[240, 240]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
 
 export default function WorldPage() {
   const { id: worldId } = useLocalSearchParams();
@@ -27,11 +73,15 @@ export default function WorldPage() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isCompact = width < 720;
+  const tileTapTimeoutRef = useRef(null);
+  const lastTileTapRef = useRef(null);
 
   const {
     tiles,
     isExpanding,
+    isPathFilling,
     expandTerritory,
+    fillPathTiles,
     placeItem,
     rotatePlacedFurniture,
     deletePlacedFurniture,
@@ -44,6 +94,9 @@ export default function WorldPage() {
   const resetBuild = useBuildStore((s) => s.resetBuild);
   const selectedWorldTile = useBuildStore((s) => s.selectedWorldTile);
   const selectWorldTile = useBuildStore((s) => s.selectWorldTile);
+  const pathQueueLength = usePlayerStore((s) => s.pathQueue.length);
+  const setPlayerPath = usePlayerStore((s) => s.setPath);
+  const advancePathStep = usePlayerStore((s) => s.advancePathStep);
 
   useEffect(() => {
     introVideoPlayer.currentTime = 0;
@@ -62,8 +115,21 @@ export default function WorldPage() {
 
     return () => {
       subscription.remove();
+      if (tileTapTimeoutRef.current) {
+        clearTimeout(tileTapTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (pathQueueLength === 0) return;
+
+    const intervalId = setInterval(() => {
+      advancePathStep();
+    }, TAP_WALK_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [advancePathStep, pathQueueLength]);
 
   const handleItemDeployment = () => {
     if (!selectedItemId) return;
@@ -71,8 +137,57 @@ export default function WorldPage() {
     placeItem(gridX, gridZ, selectedItemId, resetBuild);
   };
 
+  const walkToGrid = async (targetX, targetZ) => {
+    const { gridX, gridZ } = usePlayerStore.getState();
+    const path = buildGridPath(gridX, gridZ, targetX, targetZ);
+
+    if (path.length === 0) return;
+
+    const didFillPath = await fillPathTiles(path);
+    if (didFillPath) {
+      setPlayerPath(path);
+    }
+  };
+
   const handleTileTapAction = (clickedTile) => {
-    selectWorldTile(clickedTile);
+    const now = Date.now();
+    const tapKey = `${clickedTile.grid_x}:${clickedTile.grid_z}`;
+    const previousTap = lastTileTapRef.current;
+    const isDoubleTap =
+      previousTap?.key === tapKey &&
+      now - previousTap.timestamp <= DOUBLE_TAP_DELAY_MS;
+
+    if (isDoubleTap) {
+      if (tileTapTimeoutRef.current) {
+        clearTimeout(tileTapTimeoutRef.current);
+        tileTapTimeoutRef.current = null;
+      }
+      lastTileTapRef.current = null;
+      selectWorldTile(clickedTile);
+      return;
+    }
+
+    lastTileTapRef.current = { key: tapKey, timestamp: now };
+    if (tileTapTimeoutRef.current) {
+      clearTimeout(tileTapTimeoutRef.current);
+    }
+    tileTapTimeoutRef.current = setTimeout(() => {
+      tileTapTimeoutRef.current = null;
+      lastTileTapRef.current = null;
+      selectWorldTile(null);
+      walkToGrid(clickedTile.grid_x, clickedTile.grid_z);
+    }, DOUBLE_TAP_DELAY_MS);
+  };
+
+  const handleGroundTap = (point) => {
+    if (tileTapTimeoutRef.current) {
+      clearTimeout(tileTapTimeoutRef.current);
+      tileTapTimeoutRef.current = null;
+    }
+    lastTileTapRef.current = null;
+    selectWorldTile(null);
+    const targetGrid = fromIso(point.x, point.z);
+    walkToGrid(targetGrid.x, targetGrid.z);
   };
 
   return (
@@ -111,7 +226,7 @@ export default function WorldPage() {
 
           {/* Grid Expansion Panel */}
           <View style={[styles.expansionPanel, isCompact && styles.compactExpansionPanel, { top: insets.top + 70 }]}>
-            <Text style={styles.panelTitle}>Expand Grid</Text>
+            <Text style={styles.panelTitle}>{isPathFilling ? "Building Path" : "Expand Grid"}</Text>
             <View style={styles.row}>
               <TouchableOpacity disabled={isExpanding} style={[styles.expBtn, isExpanding && styles.disabledBtn]} onPress={() => expandTerritory("north")}>
                 <Text style={styles.btnText}>N</Text>
@@ -137,6 +252,7 @@ export default function WorldPage() {
             <ambientLight intensity={0.9} />
             <directionalLight position={[15, 25, 15]} intensity={0.5} />
             <Suspense fallback={null}>
+              <GroundTapPlane onGroundTap={handleGroundTap} />
               <TileMap 
                 tiles={tiles} 
                 onTileTap={handleTileTapAction} 

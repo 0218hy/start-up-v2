@@ -9,6 +9,7 @@ export function useWorldTiles(worldId) {
   const [tiles, setTiles] = useState([]);
   const [isPlacing, setIsPlacing] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
+  const [isPathFilling, setIsPathFilling] = useState(false);
   const setGlobalTiles = useWorldStore((state) => state.setTiles);
 
   const syncTiles = (tilesData) => {
@@ -95,6 +96,45 @@ export function useWorldTiles(worldId) {
       console.error("Territory expand exception:", err.message);
     } finally {
       setIsExpanding(false);
+    }
+  };
+
+  const fillPathTiles = async (path) => {
+    if (!worldId || isPathFilling || !path.length) return false;
+
+    const existingKeys = new Set(
+      useWorldStore.getState().tiles.map((tile) => `${tile.grid_x}:${tile.grid_z}`)
+    );
+    const missingTiles = path
+      .filter(({ x, z }) => !existingKeys.has(`${x}:${z}`))
+      .map(({ x, z }) => ({
+        world_id: worldId,
+        grid_x: x,
+        grid_z: z,
+        tile_type: "grass_v1",
+        furniture_type: null,
+        furniture_rotation: 0,
+      }));
+
+    if (missingTiles.length === 0) return true;
+
+    try {
+      setIsPathFilling(true);
+      const { error } = await supabase
+        .from("world_tiles")
+        .upsert(missingTiles, { onConflict: "world_id,grid_x,grid_z" });
+
+      if (error) throw error;
+
+      const mergedTiles = [...useWorldStore.getState().tiles, ...missingTiles];
+      syncTiles(mergedTiles);
+      await loadWorldData();
+      return true;
+    } catch (err) {
+      console.error("Path tile fill failed:", err.message);
+      return false;
+    } finally {
+      setIsPathFilling(false);
     }
   };
 
@@ -240,5 +280,5 @@ export function useWorldTiles(worldId) {
     };
   }, [worldId]);
 
-  return { tiles, isPlacing, isExpanding, expandTerritory, placeItem, rotatePlacedFurniture, deletePlacedFurniture, deleteTile};
+  return { tiles, isPlacing, isExpanding, isPathFilling, expandTerritory, fillPathTiles, placeItem, rotatePlacedFurniture, deletePlacedFurniture, deleteTile};
 }

@@ -87,7 +87,7 @@ export default function Player() {
     // 🏃‍♂️ ANIMATION TICK ROUTER: Check if player mesh is still traveling
     if (distanceX > 0.005 || distanceZ > 0.005) {
       // Multiply delta to adjust your walk sprite cycle speed (e.g., 20.0)
-      frameAccumulator.current += delta * 30.0;
+      frameAccumulator.current += delta * 18.0;
       
       if (frameAccumulator.current >= 1) {
         setLocalFrame((prev) => (prev + 1) % cols);
@@ -102,13 +102,13 @@ export default function Player() {
     meshRef.current.position.x = THREE.MathUtils.lerp(
       meshRef.current.position.x,
       target.x,
-      0.15
+      0.08
     );
 
     meshRef.current.position.z = THREE.MathUtils.lerp(
       meshRef.current.position.z,
       target.z,
-      0.15
+      0.08
     );
 
     // Explicitly push latest calculations straight into your custom shader uniforms
