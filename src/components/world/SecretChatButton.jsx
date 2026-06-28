@@ -162,8 +162,6 @@ const styles = StyleSheet.create({
 
     modalTitle: { fontFamily: "SuperJoyful", fontSize: 22, color: "#431407", marginBottom: 6, textAlign: "center" },
     modalBody: { color: "#9A3412", fontSize: 13, textAlign: "center", lineHeight: 18, fontWeight: "600", marginBottom: 16 },
-    input: { height: 44, width: 80, backgroundColor: "#FFFFFF", borderRadius: 12, borderWidth: 1.5, borderColor: "#FED7AA", textAlign: "center", fontSize: 18, fontWeight: "700", color: "#431407", marginBottom: 20 },
-
     modalActions: { flexDirection: "row", gap: 12, width: "100%" },
     cancelBtn: { flex: 1, height: 46, justifyContent: "center", alignItems: "center" },
     cancelText: { color: "#9A3412", fontWeight: "700" },

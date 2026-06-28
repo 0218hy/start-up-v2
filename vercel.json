@@ -1,8 +1,12 @@
 {
-    "rewrites": [
-      {
-        "source": "/(.*)",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "framework": null,
+  "buildCommand": "npm run vercel-build",
+  "devCommand": "npm run web",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

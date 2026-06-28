@@ -1,14 +1,26 @@
 import React from "react";
-import { useTexture } from "@react-three/drei/native";
+import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import FloorTile from "./FloorTile"; 
 import { SPRITE_SHEETS } from "../../constants/catalog"; 
 
-export default function TileMap({ tiles, onTileTap }) {
-  // 📥 Load ALL sprite sheets declared in your registry concurrently
-  const loadedTextures = useTexture(SPRITE_SHEETS);
+const getTextureUri = (source) => {
+  if (typeof source === "string") return source;
+  return source?.uri || source?.default?.uri || source;
+};
 
-  // 🎨 Inject crisp, pixel-perfect scaling rules uniformly across all sheets
+export default function TileMap({ tiles, onTileTap }) {
+  const textureSources = React.useMemo(
+    () => Object.fromEntries(
+      Object.entries(SPRITE_SHEETS).map(([key, source]) => [
+        key,
+        getTextureUri(source),
+      ])
+    ),
+    []
+  );
+  const loadedTextures = useTexture(textureSources);
+
   React.useMemo(() => {
     Object.values(loadedTextures).forEach((tex) => {
       if (tex) {
@@ -27,7 +39,7 @@ export default function TileMap({ tiles, onTileTap }) {
           <FloorTile
             key={`${tile.grid_x}_${tile.grid_z}`}
             tileData={tile}
-            texturesCatalog={loadedTextures} // 🚀 Unified pipeline parameter passed down
+            texturesCatalog={loadedTextures}
             onTileTap={onTileTap}
           />
         );

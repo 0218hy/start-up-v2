@@ -1,11 +1,10 @@
-// 📁 src/app/world.jsx
-import { Canvas } from "@react-three/fiber/native";
+// src/app/world.jsx
+import { Canvas } from "@react-three/fiber";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { VideoView } from "expo-video"; 
-import React, { Suspense, useEffect, useState, useMemo } from "react";
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { Suspense, useEffect, useState } from "react";
+import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import * as THREE from "three";
 
 // Custom Game Engine Elements
 import CameraRig from "../../components/Camera";
@@ -22,23 +21,12 @@ import { useWorldTiles } from "../../hooks/useWorldTiles";
 import { useBuildStore } from "../../stores/buildStore";
 import { introVideoPlayer } from "../../utils/introVideo";
 
-const { width, height } = Dimensions.get("window");
-
 export default function WorldPage() {
   const { id: worldId } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  // 🚀 WEB FIX: Clean, absolute paths mapped directly to your public folder root!
-  const texturesCatalog = useMemo(() => {
-    const loader = new THREE.TextureLoader();
-    return {
-      tile_1: loader.load("/assets/sprites/iso_tile_1.png"),
-      tile_2: loader.load("/assets/sprites/iso_tile_2.png"),
-      furniture_bakery: loader.load("/assets/sprites/furniture.png"),
-      food: loader.load("/assets/sprites/food_1.png"),
-    };
-  }, []);
+  const { width, height } = useWindowDimensions();
+  const isCompact = width < 720;
 
   const {
     tiles,
@@ -51,8 +39,6 @@ export default function WorldPage() {
   } = useWorldTiles(worldId);
 
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
-  const [selectorGrid, setSelectorGrid] = useState({ x: 0, z: 0 });
-
   const user = useAuthStore((s) => s.user);
   const selectedItemId = useBuildStore((s) => s.selectedItemId);
   const resetBuild = useBuildStore((s) => s.resetBuild);
@@ -60,7 +46,13 @@ export default function WorldPage() {
   const selectWorldTile = useBuildStore((s) => s.selectWorldTile);
 
   useEffect(() => {
-    if (!introVideoPlayer.isPlaying) {
+    introVideoPlayer.currentTime = 0;
+
+    if (Platform.OS === "web") {
+      introVideoPlayer.muted = true;
+    }
+
+    if (!introVideoPlayer.playing) {
       introVideoPlayer.play();
     }
 
@@ -91,7 +83,7 @@ export default function WorldPage() {
         <View style={styles.videoContainer}>
           <VideoView
             player={introVideoPlayer}
-            style={styles.fullScreenVideo}
+            style={{ width, height }}
             nativeControls={false} 
             resizeMode="cover"
           />
@@ -118,7 +110,7 @@ export default function WorldPage() {
           </SafeAreaView>
 
           {/* Grid Expansion Panel */}
-          <View style={[styles.expansionPanel, { top: insets.top + 70 }]}>
+          <View style={[styles.expansionPanel, isCompact && styles.compactExpansionPanel, { top: insets.top + 70 }]}>
             <Text style={styles.panelTitle}>Expand Grid</Text>
             <View style={styles.row}>
               <TouchableOpacity disabled={isExpanding} style={[styles.expBtn, isExpanding && styles.disabledBtn]} onPress={() => expandTerritory("north")}>
@@ -145,13 +137,10 @@ export default function WorldPage() {
             <ambientLight intensity={0.9} />
             <directionalLight position={[15, 25, 15]} intensity={0.5} />
             <Suspense fallback={null}>
-              {texturesCatalog && (
-                <TileMap 
-                  tiles={tiles} 
-                  texturesCatalog={texturesCatalog} 
-                  onTileTap={handleTileTapAction} 
-                />
-              )}
+              <TileMap 
+                tiles={tiles} 
+                onTileTap={handleTileTapAction} 
+              />
               <Player />
             </Suspense>
             <CameraRig />
@@ -164,7 +153,7 @@ export default function WorldPage() {
 
                 {selectedWorldTile.furniture_type ? (
                   <View style={{ width: "100%", alignItems: "center" }}>
-                    <Text style={styles.bubbleTitle}>Furniture Options</Text>
+                    <Text style={styles.bubbleTitle}>Item Options</Text>
 
                     <View style={styles.bubbleRow}>
                       <TouchableOpacity
@@ -185,7 +174,7 @@ export default function WorldPage() {
                           selectedWorldTile.grid_z
                         )}
                       >
-                        <Text style={styles.bubbleBtnText}>🗑️ Remove Item</Text>
+                        <Text style={styles.bubbleBtnText}>🗑️ Remove</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -217,8 +206,8 @@ export default function WorldPage() {
             </View>
           )}
 
-          <InventoryBar onPlaceClick={handleItemDeployment} onRotatePlacedClick={rotatePlacedFurniture} />
-          <Controls setSelectorGrid={setSelectorGrid} />
+          <InventoryBar onPlaceClick={handleItemDeployment} />
+          <Controls />
         </>
       )}
     </View>
@@ -228,7 +217,6 @@ export default function WorldPage() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1a1a1a" },
   videoContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000", zIndex: 999999 },
-  fullScreenVideo: { width: width, height: height },
   videoOverlay: { position: "absolute", bottom: 80, left: 0, right: 0, alignItems: "center", gap: 14 },
   loadingText: { color: "#64748b", fontSize: 13, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
   enterBtn: { backgroundColor: "rgba(37, 99, 235, 0.95)", paddingVertical: 14, paddingHorizontal: 26, borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
@@ -237,6 +225,7 @@ const styles = StyleSheet.create({
   backButton: { backgroundColor: "rgba(30, 41, 59, 0.9)", minWidth: 100, height: 48, justifyContent: "center", alignItems: "center", borderRadius: 24, borderWidth: 1.5, borderColor: "#334155", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 },
   backButtonText: { color: "#cbd5e1", fontWeight: "700", fontSize: 14 },
   expansionPanel: { position: "absolute", right: 16, zIndex: 20, backgroundColor: "rgba(15, 23, 42, 0.85)", padding: 12, borderRadius: 16, alignItems: "center", borderWidth: 1, borderColor: "#334155" },
+  compactExpansionPanel: { right: 12, padding: 8 },
   panelTitle: { color: "#94a3b8", fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
   row: { flexDirection: "row", marginVertical: 3 },
   expBtn: { backgroundColor: "#2563eb", width: 44, height: 44, justifyContent: "center", alignItems: "center", marginHorizontal: 3, borderRadius: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2 },
@@ -253,5 +242,3 @@ const styles = StyleSheet.create({
   bubbleClose: { marginTop: 10, paddingVertical: 4 },
   closeText: { color: "#64748b", fontSize: 12, fontWeight: "600" }
 });
-
-// 🚀 CLEANUP: The non-web fallback declarations (`SPRITE_SHEETS`, `ITEM_CATALOG`) are cleanly excised from this view structure file!

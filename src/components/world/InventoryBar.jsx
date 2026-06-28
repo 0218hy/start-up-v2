@@ -5,7 +5,7 @@ import { ITEM_CATALOG, SPRITE_SHEETS } from "../../constants/catalog";
 import { useBuildStore } from "../../stores/buildStore";
 
 const PREVIEW_BOX_SIZE = 48; // 🎨 Size of the icon preview container box
-const TABS = [
+export const INVENTORY_TABS = [
     { id: "floor", label: "Floors" },
     { id: "furniture", label: "Furniture" },
     { id: "food", label: "Food" }
@@ -29,7 +29,7 @@ export default function InventoryBar({ onPlaceClick }) {
             <View>
                 <View style={styles.tabHeader}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
-                        {TABS.map((tab) => (
+                        {INVENTORY_TABS.map((tab) => (
                             <TouchableOpacity
                                 key={tab.id}
                                 style={[styles.tab, activeTab === tab.id && styles.activeTab]}

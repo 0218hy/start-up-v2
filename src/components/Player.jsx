@@ -1,10 +1,13 @@
-import { useTexture } from "@react-three/drei/native";
-import { useFrame } from "@react-three/fiber/native";
+import { useTexture } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { usePlayerStore } from "../stores/playerStore";
 import { TILE_SIZE, toIso } from "../utils/iso";
+
+const playerSpriteSource = require("../assets/sprites/sample_player.png");
+const playerSpriteUri = playerSpriteSource?.uri || playerSpriteSource?.default?.uri || playerSpriteSource;
 
 export default function Player() {
   const meshRef = useRef();
@@ -19,7 +22,7 @@ export default function Player() {
   const frameAccumulator = useRef(0);
 
   // 3. Load the Character Sheet Asset
-  const texture = useTexture(require("../assets/sprites/sample_player.png"));
+  const texture = useTexture(playerSpriteUri);
   const cols = 16;
   const rows = 4;
 

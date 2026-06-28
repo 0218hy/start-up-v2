@@ -115,10 +115,9 @@ export function useWorldTiles(worldId) {
 
       if (itemDetails.category === "floor") {
         updatePayload.tile_type = selectedItemId.replace("tile_", "");
-      } else if (itemDetails.category === "furniture") {
+      } else {
         updatePayload.furniture_type = selectedItemId;
-        // 💡 Initial placements start facing straight forward (0)
-        updatePayload.furniture_rotation = 0; 
+        updatePayload.furniture_rotation = 0;
       }
 
       const { error } = await supabase

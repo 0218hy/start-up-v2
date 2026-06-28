@@ -2,7 +2,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorldCard from "../../components/lobby/WorldCard";
 import { supabase } from "../../lib/supabase";
@@ -75,18 +75,19 @@ export default function Landing() {
                             </View>
                         ) : (
                             worlds.map((w) => {
-                                if (!w.worlds) return null;
+                                const world = Array.isArray(w.worlds) ? w.worlds[0] : w.worlds;
+                                if (!world) return null;
                                 return (
                                     <View key={w.world_id} style={styles.cardWrapper}>
                                         <WorldCard
-                                            world={w.worlds}
+                                            world={world}
                                             onPress={() => {
-                                                // 🔥 FIXED: Assign 0 to currentTime directly instead of invoking seekTo()
                                                 introVideoPlayer.currentTime = 0;
-                                                introVideoPlayer.play();
+                                                if (Platform.OS !== "web") {
+                                                    introVideoPlayer.play();
+                                                }
 
-                                                // Move to the world screen while the video is already actively playing frames
-                                                router.push(`world/${w.worlds.id}`);
+                                                router.push(`/world/${world.id}`);
                                             }}
                                         />
                                     </View>

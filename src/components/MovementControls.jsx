@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Animated, PanResponder, StyleSheet, View } from "react-native";
 import { usePlayerStore } from "../stores/playerStore";
 

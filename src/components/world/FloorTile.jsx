@@ -33,10 +33,9 @@ export default function FloorTile({
     grid_x: gridX, 
     grid_z: gridZ, 
     tile_type: tileType,
-    // 🚀 UNIFIED: Look for a generic item field (or fallback to old furniture fields if migrating data)
-    furniture_type: itemType = tileData.item_type || tileData.furniture_type || tileData.food_type, 
     furniture_rotation: itemRotation = 0
   } = tileData;
+  const itemType = tileData.item_type || tileData.furniture_type || tileData.food_type;
 
   const isoPos = toIso(gridX, gridZ);
 
