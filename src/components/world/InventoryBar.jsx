@@ -1,6 +1,6 @@
 // 📁 src/components/world/InventoryBar.jsx
 import React from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ITEM_CATALOG, SPRITE_SHEETS } from "../../constants/catalog";
 import { useBuildStore } from "../../stores/buildStore";
 
@@ -11,7 +11,45 @@ export const INVENTORY_TABS = [
     { id: "food", label: "Food" }
 ];
 
-export default function InventoryBar({ onPlaceClick }) {
+function InventorySpritePreview({ item, size = PREVIEW_BOX_SIZE }) {
+    const frameSize = item.frameSize || 64;
+    const visualSize = item.size || frameSize;
+    const itemCols = item.cols || 4;
+    const itemRows = item.rows || 4;
+    const activeSheetSource = SPRITE_SHEETS[item.sheet];
+
+    const col = item.spriteIndex % itemCols;
+    const row = Math.floor(item.spriteIndex / itemCols);
+    const leftOffset = -col * frameSize;
+    const topOffset = -row * frameSize;
+    const scale = Math.min(1, visualSize / frameSize) * (size / frameSize);
+
+    return (
+        <View style={{ width: size, height: size, justifyContent: "center", alignItems: "center" }}>
+            <View style={{
+                width: frameSize,
+                height: frameSize,
+                overflow: "hidden",
+                position: "absolute",
+                transform: [{ scale }]
+            }}>
+                <Image
+                    source={activeSheetSource}
+                    style={{
+                        position: "absolute",
+                        width: frameSize * itemCols,
+                        height: frameSize * itemRows,
+                        left: leftOffset,
+                        top: topOffset,
+                        resizeMode: "stretch"
+                    }}
+                />
+            </View>
+        </View>
+    );
+}
+
+export default function InventoryBar({ onPlaceClick, onItemDragStart, onItemDragEnd }) {
     const { buildMode, setBuildMode, activeTab, setTab, selectedItemId, selectItem } = useBuildStore();
 
     if (!buildMode) {
@@ -48,53 +86,36 @@ export default function InventoryBar({ onPlaceClick }) {
                 <View style={styles.contentRow}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {itemsToDisplay.map((item) => {
-                            const spriteSize = item.size || 64;
-                            const itemCols = item.cols || 4;
-                            const itemRows = item.rows || 4;
-                            const activeSheetSource = SPRITE_SHEETS[item.sheet];
-
-                            const col = item.spriteIndex % itemCols;
-                            const row = Math.floor(item.spriteIndex / itemCols);
-
-                            // 🚀 Calculate pixel alignments directly
-                            const leftOffset = -col * spriteSize;
-                            const topOffset = -row * spriteSize;
-
-                            // 🚀 Determine safe scaling multiplier
-                            const scale = PREVIEW_BOX_SIZE / spriteSize;
-
-                            return (
+                            const itemCard = (
                                 <TouchableOpacity
                                     key={item.id}
                                     style={[styles.itemCard, selectedItemId === item.id && styles.selectedCard]}
                                     onPress={() => selectItem(item.id)}
                                 >
-                                    {/* Outer display container slot */}
-                                    <View style={{ width: PREVIEW_BOX_SIZE, height: PREVIEW_BOX_SIZE, justifyContent: 'center', alignItems: 'center' }}>
-                                        
-                                        {/* 🚀 FIXED: Dynamic Scale Wrapper Box at native sprite bounds */}
-                                        <View style={{
-                                            width: spriteSize,
-                                            height: spriteSize,
-                                            overflow: "hidden",
-                                            position: "absolute",
-                                            transform: [{ scale: scale }] // Safe scaling without positioning corruption
-                                        }}>
-                                            <Image
-                                                source={activeSheetSource}
-                                                style={{
-                                                    position: "absolute",
-                                                    width: spriteSize * itemCols,
-                                                    height: spriteSize * itemRows,
-                                                    left: leftOffset, // Exact horizontal alignment
-                                                    top: topOffset,   // Exact vertical alignment
-                                                    resizeMode: "stretch"
-                                                }}
-                                            />
-                                        </View>
-                                    </View>
+                                    <InventorySpritePreview item={item} />
                                     <Text style={styles.itemText} numberOfLines={1}>{item.name}</Text>
                                 </TouchableOpacity>
+                            );
+
+                            if (Platform.OS !== "web") {
+                                return itemCard;
+                            }
+
+                            return (
+                                <div
+                                    key={item.id}
+                                    draggable
+                                    onDragStart={(event) => {
+                                        selectItem(item.id);
+                                        event.dataTransfer.setData("text/plain", item.id);
+                                        event.dataTransfer.effectAllowed = "copy";
+                                        onItemDragStart?.(item.id);
+                                    }}
+                                    onDragEnd={() => onItemDragEnd?.()}
+                                    style={{ display: "inline-block", cursor: "grab" }}
+                                >
+                                    {itemCard}
+                                </div>
                             );
                         })}
                     </ScrollView>

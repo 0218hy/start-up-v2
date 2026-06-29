@@ -4,9 +4,12 @@ import { useWorldStore } from "../stores/worldStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { useBuildStore } from "../stores/buildStore"; // 💡 Added missing store import for local UI sync
 import { ITEM_CATALOG } from "../constants/catalog";
+import { persistInitialWorldTiles } from "../utils/worldTileSeed";
 
 export function useWorldTiles(worldId) {
   const [tiles, setTiles] = useState([]);
+  const [isLoadingTiles, setIsLoadingTiles] = useState(true);
+  const [tileSeedError, setTileSeedError] = useState(null);
   const [isPlacing, setIsPlacing] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
   const [isPathFilling, setIsPathFilling] = useState(false);
@@ -20,6 +23,9 @@ export function useWorldTiles(worldId) {
   const loadWorldData = async () => {
     if (!worldId) return;
 
+    setIsLoadingTiles(true);
+    setTileSeedError(null);
+
     const { data, error } = await supabase
       .from("world_tiles")
       // 🌟 Cleanly fetching the rotation column
@@ -28,28 +34,26 @@ export function useWorldTiles(worldId) {
 
     if (error) {
       console.error("Error loading map:", error.message);
+      setTileSeedError(error.message);
+      setIsLoadingTiles(false);
       return;
     }
 
     if (!data || data.length === 0) {
-      const initial3x3 = [];
-      for (let x = -1; x <= 1; x++) {
-        for (let z = -1; z <= 1; z++) {
-          initial3x3.push({
-            world_id: worldId,
-            grid_x: x,
-            grid_z: z,
-            tile_type: "grass_v1",
-            furniture_type: null,
-            furniture_rotation: 0 // Default newly created grids safely
-          });
-        }
+      try {
+        const initialTiles = await persistInitialWorldTiles(supabase, worldId);
+        syncTiles(initialTiles);
+      } catch (seedError) {
+        console.error("Initial tile seed failed:", seedError.message);
+        setTileSeedError(seedError.message);
+        setIsLoadingTiles(false);
+        return;
       }
-      await supabase.from("world_tiles").insert(initial3x3);
-      syncTiles(initial3x3);
     } else {
       syncTiles(data);
     }
+
+    setIsLoadingTiles(false);
   };
 
   const expandTerritory = async (direction) => {
@@ -258,6 +262,9 @@ export function useWorldTiles(worldId) {
 
   useEffect(() => {
     if (!worldId) return;
+
+    syncTiles([]);
+    usePlayerStore.getState().resetPosition();
     
     loadWorldData();
 
@@ -280,5 +287,5 @@ export function useWorldTiles(worldId) {
     };
   }, [worldId]);
 
-  return { tiles, isPlacing, isExpanding, isPathFilling, expandTerritory, fillPathTiles, placeItem, rotatePlacedFurniture, deletePlacedFurniture, deleteTile};
+  return { tiles, isLoadingTiles, tileSeedError, isPlacing, isExpanding, isPathFilling, expandTerritory, fillPathTiles, placeItem, rotatePlacedFurniture, deletePlacedFurniture, deleteTile};
 }

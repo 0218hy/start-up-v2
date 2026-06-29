@@ -1,19 +1,38 @@
 import { useAuthStore } from "@/stores/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorldCard from "../../components/lobby/WorldCard";
 import { supabase } from "../../lib/supabase";
-import { introVideoPlayer } from "../../utils/introVideo";
+import { loadingVideoSource, startVideoSource, waitingVideoSource } from "../../utils/introVideo";
+
+const flowerTopLeft = require("../../assets/images/nooklet/flower1.png");
 
 export default function Landing() {
     const [worlds, setWorlds] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedWorld, setSelectedWorld] = useState(null);
+    const [isStartingWorld, setIsStartingWorld] = useState(false);
+    const startTimeoutRef = useRef(null);
     const router = useRouter();
 
     const user = useAuthStore((state) => state.user);
+    const loadingVideoPlayer = useVideoPlayer(loadingVideoSource, (player) => {
+        player.loop = true;
+        player.muted = true;
+        player.play();
+    });
+    const waitingVideoPlayer = useVideoPlayer(waitingVideoSource, (player) => {
+        player.loop = true;
+        player.muted = true;
+    });
+    const startVideoPlayer = useVideoPlayer(startVideoSource, (player) => {
+        player.loop = false;
+        player.muted = true;
+    });
 
     async function loadWorlds() {
         if (!user) return;
@@ -38,9 +57,62 @@ export default function Landing() {
         loadWorlds();
     }, [user]);
 
+    useEffect(() => {
+        return () => {
+            if (startTimeoutRef.current) {
+                clearTimeout(startTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!selectedWorld) return;
+
+        if (isStartingWorld) {
+            startVideoPlayer.currentTime = 0;
+            startVideoPlayer.play();
+            return;
+        }
+
+        waitingVideoPlayer.currentTime = 0;
+        waitingVideoPlayer.play();
+    }, [isStartingWorld, selectedWorld, startVideoPlayer, waitingVideoPlayer]);
+
+    const chooseWorld = (world) => {
+        if (isStartingWorld) return;
+
+        setSelectedWorld(world);
+    };
+
+    const closeSelectedWorld = () => {
+        if (isStartingWorld) return;
+
+        setSelectedWorld(null);
+        waitingVideoPlayer.pause();
+    };
+
+    const enterSelectedWorld = () => {
+        if (!selectedWorld || isStartingWorld) return;
+
+        setIsStartingWorld(true);
+        waitingVideoPlayer.pause();
+
+        startTimeoutRef.current = setTimeout(() => {
+            router.push(`/world/${selectedWorld.id}`);
+        }, 2400);
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
+                <VideoView
+                    player={loadingVideoPlayer}
+                    style={StyleSheet.absoluteFillObject}
+                    nativeControls={false}
+                    contentFit="contain"
+                    playsInline
+                />
+                <View style={styles.loadingScrim} />
                 <ActivityIndicator size="large" color="#F59E0B" />
                 <Text style={styles.loadingText}>Awakening your spaces...</Text>
             </View>
@@ -54,6 +126,7 @@ export default function Landing() {
                 locations={[0, 0.5, 1]}
                 style={StyleSheet.absoluteFillObject}
             />
+            <Image source={flowerTopLeft} style={styles.flowerAccent} resizeMode="contain" />
 
             <SafeAreaView edges={["top"]} style={styles.flexContainer}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -81,14 +154,7 @@ export default function Landing() {
                                     <View key={w.world_id} style={styles.cardWrapper}>
                                         <WorldCard
                                             world={world}
-                                            onPress={() => {
-                                                introVideoPlayer.currentTime = 0;
-                                                if (Platform.OS !== "web") {
-                                                    introVideoPlayer.play();
-                                                }
-
-                                                router.push(`/world/${world.id}`);
-                                            }}
+                                            onPress={() => chooseWorld(world)}
                                         />
                                     </View>
                                 );
@@ -124,6 +190,39 @@ export default function Landing() {
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
+
+            {selectedWorld ? (
+                <View style={styles.startOverlay}>
+                    <VideoView
+                        player={isStartingWorld ? startVideoPlayer : waitingVideoPlayer}
+                        style={StyleSheet.absoluteFillObject}
+                        nativeControls={false}
+                        contentFit="contain"
+                        playsInline
+                    />
+                    <View style={styles.startScrim} />
+                    {!isStartingWorld ? (
+                        <View style={styles.worldChoicePanel}>
+                            <Text style={styles.choiceTitle}>{selectedWorld.world_name}</Text>
+                            <Text style={styles.choiceSubtitle}>Space Code: {selectedWorld.code}</Text>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={[styles.celShadedButton, styles.enterWorldBtn]}
+                                onPress={enterSelectedWorld}
+                            >
+                                <Text style={styles.btnTextLight}>Join World</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                activeOpacity={0.75}
+                                style={styles.cancelChoiceBtn}
+                                onPress={closeSelectedWorld}
+                            >
+                                <Text style={styles.cancelChoiceText}>Choose Another Space</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : null}
+                </View>
+            ) : null}
         </View>
     );
 }
@@ -137,20 +236,35 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFEDD5",
         justifyContent: "center",
         alignItems: "center",
-        gap: 12
+        gap: 12,
+    },
+    loadingScrim: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(67, 20, 7, 0.38)",
     },
     loadingText: {
-        color: "#EA580C",
+        color: "#FFFFFF",
         fontSize: 16,
         fontWeight: "700",
+        textShadowColor: "rgba(67, 20, 7, 0.75)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
     },
     scrollContent: {
         paddingHorizontal: 24,
-        paddingBottom: 20,
+        paddingBottom: 28,
+    },
+    flowerAccent: {
+        position: "absolute",
+        top: 8,
+        left: -56,
+        width: 190,
+        height: 190,
+        opacity: 0.9,
     },
     headerSection: {
         alignItems: "center",
-        marginTop: 28,
+        marginTop: 40,
         marginBottom: 32,
     },
     mainHeading: {
@@ -247,6 +361,57 @@ const styles = StyleSheet.create({
         color: "#C2410C",
         fontSize: 14,
         fontWeight: "700",
+        textDecorationLine: "underline",
+    },
+    startOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 50,
+        backgroundColor: "#000",
+        justifyContent: "flex-end",
+    },
+    startScrim: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0, 0, 0, 0.18)",
+    },
+    worldChoicePanel: {
+        marginHorizontal: 20,
+        marginBottom: 28,
+        padding: 20,
+        borderRadius: 24,
+        backgroundColor: "rgba(255, 255, 255, 0.94)",
+        borderWidth: 2,
+        borderColor: "rgba(253, 186, 116, 0.9)",
+        alignItems: "center",
+        gap: 10,
+    },
+    choiceTitle: {
+        fontFamily: "SuperJoyful",
+        color: "#431407",
+        fontSize: 28,
+        textAlign: "center",
+    },
+    choiceSubtitle: {
+        color: "#9A3412",
+        fontSize: 14,
+        fontWeight: "700",
+        marginBottom: 8,
+    },
+    enterWorldBtn: {
+        width: "100%",
+        backgroundColor: "#EA580C",
+        borderColor: "#9A3412",
+        shadowColor: "#9A3412",
+    },
+    cancelChoiceBtn: {
+        height: 42,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 12,
+    },
+    cancelChoiceText: {
+        color: "#C2410C",
+        fontSize: 14,
+        fontWeight: "800",
         textDecorationLine: "underline",
     },
 });

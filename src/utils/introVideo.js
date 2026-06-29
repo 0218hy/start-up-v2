@@ -1,8 +1,3 @@
-import { createVideoPlayer } from 'expo-video';
-
-const videoSource = require("../assets/videos/intro_loading.mp4");
-
-export const introVideoPlayer = createVideoPlayer(videoSource);
-
-introVideoPlayer.loop = false;
-introVideoPlayer.preload = "auto";
+export const loadingVideoSource = require("../assets/videos/nooklet/loading.mp4");
+export const waitingVideoSource = require("../assets/videos/nooklet/waiting.mp4");
+export const startVideoSource = require("../assets/videos/nooklet/start.mp4");

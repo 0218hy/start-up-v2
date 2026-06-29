@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors, Fonts, Spacing } from "../constants/theme"; // Adjust path to your theme.js
+import { persistInitialWorldTiles } from "../utils/worldTileSeed";
 
 export default function CreateWorld() {
   const [name, setName] = useState("");
@@ -69,7 +70,9 @@ export default function CreateWorld() {
 
       if (memberError) throw memberError;
 
-      router.push(`/world/${world.id}`);
+      await persistInitialWorldTiles(supabase, world.id);
+
+      router.replace(`/world/${world.id}`);
 
     } catch (error) {
       Alert.alert("Creation Issue", error.message);

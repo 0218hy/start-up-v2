@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createStore } from "./createStore";
 import { useWorldStore } from "./worldStore"; 
 
 const WORLD_MIN = -25;
@@ -24,7 +24,7 @@ function isInsideWorld(x, z) {
   return x >= WORLD_MIN && x <= WORLD_MAX && z >= WORLD_MIN && z <= WORLD_MAX;
 }
 
-export const usePlayerStore = create((set, get) => ({
+export const usePlayerStore = createStore((set, get) => ({
   gridX: 0,
   gridZ: 0,
   directionRow: 0, // 0: Down, 1: Left, 2: Right, 3: Up (Match your sheet order!)
@@ -73,6 +73,14 @@ export const usePlayerStore = create((set, get) => ({
   setPath: (path) => set({ pathQueue: path }),
 
   clearPath: () => set({ pathQueue: [] }),
+
+  resetPosition: () => set({
+    gridX: 0,
+    gridZ: 0,
+    directionRow: 0,
+    animationFrame: 0,
+    pathQueue: [],
+  }),
 
   advancePathStep: () =>
     set((state) => {

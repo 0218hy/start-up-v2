@@ -27,7 +27,6 @@ const SHADER_DEFINITION = {
 export default function FloorTile({ 
   tileData,
   texturesCatalog, 
-  onTileTap,
 }) {
   const { 
     grid_x: gridX, 
@@ -51,6 +50,7 @@ export default function FloorTile({
   // Track down active graphic source pointers inside preloaded bundle array
   const activeFloorTexture = floorConfig ? texturesCatalog[floorConfig.sheet] : null;
   const activeObjectTexture = objectConfig ? texturesCatalog[objectConfig.sheet] : null;
+  const objectScale = objectConfig ? (objectConfig.size || 64) / 64 : 1;
 
   const floorUV = useMemo(() => {
     if (!floorConfig) return [0, 0, 1, 1];
@@ -80,10 +80,6 @@ export default function FloorTile({
   return (
     <group 
       position={[isoPos.x, 0, isoPos.z]}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (onTileTap) onTileTap(tileData);
-      }}
     >
       {/* 1. Ground Layer */}
       {activeFloorTexture && (
@@ -106,7 +102,7 @@ export default function FloorTile({
       {/* 2. Unified Object Layer (Furniture, Food, Decor, etc.) */}
       {itemType && objectConfig && activeObjectTexture && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, TILE_SIZE / 2, 0]} renderOrder={objectOrder}>
-          <planeGeometry args={[TILE_SIZE * 2, TILE_SIZE * 2]} />
+          <planeGeometry args={[TILE_SIZE * 2 * objectScale, TILE_SIZE * 2 * objectScale]} />
           <shaderMaterial
             transparent
             vertexShader={SHADER_DEFINITION.vertexShader}

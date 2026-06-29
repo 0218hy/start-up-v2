@@ -129,7 +129,7 @@ export const ITEM_CATALOG = {
       spriteIndex: 0,
       cols: 16,
       rows: 1,
-      size: 64,
+      size: 8,
     },
     apple_pie: {
       id: "apple_pie",

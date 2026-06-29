@@ -9,7 +9,7 @@ const getTextureUri = (source) => {
   return source?.uri || source?.default?.uri || source;
 };
 
-export default function TileMap({ tiles, onTileTap }) {
+export default function TileMap({ tiles }) {
   const textureSources = React.useMemo(
     () => Object.fromEntries(
       Object.entries(SPRITE_SHEETS).map(([key, source]) => [
@@ -40,7 +40,6 @@ export default function TileMap({ tiles, onTileTap }) {
             key={`${tile.grid_x}_${tile.grid_z}`}
             tileData={tile}
             texturesCatalog={loadedTextures}
-            onTileTap={onTileTap}
           />
         );
       })}

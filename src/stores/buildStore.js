@@ -1,6 +1,6 @@
-import { create } from "zustand";
+import { createStore } from "./createStore";
 
-export const useBuildStore = create((set) => ({
+export const useBuildStore = createStore((set) => ({
   buildMode: false,
   activeTab: "floor", // 'floor' or 'furniture'
   selectedItemId: null,

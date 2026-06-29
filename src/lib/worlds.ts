@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { persistInitialWorldTiles } from "../utils/worldTileSeed";
 
 export async function createWorld(
   ownerId: string
@@ -27,6 +28,8 @@ export async function createWorld(
       player_id: ownerId,
       role: "owner",
     });
+
+  await persistInitialWorldTiles(supabase, data.id);
 
   return data;
 }

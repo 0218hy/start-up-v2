@@ -1,7 +1,6 @@
-import { User } from "@supabase/supabase-js";
-import { create } from "zustand";
+import { createStore } from "./createStore";
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = createStore((set) => ({
     user: null,                     // Starting out, we assume no user context is loaded
     loading: true,                  // Starts as true so your app can show a splash screen during initialization
 

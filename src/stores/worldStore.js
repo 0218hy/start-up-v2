@@ -1,6 +1,6 @@
-import { create } from "zustand";
+import { createStore } from "./createStore";
 
-export const useWorldStore = create((set) => ({
+export const useWorldStore = createStore((set) => ({
   worldId: null,
   players: {},
   tiles: [],

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, TextInput, View, Text, Alert } from "react-native";
+import { Button, Image, StyleSheet, TextInput, View, Text, Alert } from "react-native";
 import { supabase } from "../lib/supabase";
+
+const nookletLogo = require("../assets/images/nooklet/nooklet_logo.png");
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -121,8 +123,9 @@ export default function LoginPage() {
 
     return (
         <View style={{ padding: 20, justifyContent: 'center', flex: 1, backgroundColor: '#111' }}>
+            <Image source={nookletLogo} style={styles.logo} resizeMode="contain" />
             <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
-                Game Server Auth
+                Nooklet
             </Text>
 
             <TextInput
@@ -173,3 +176,14 @@ export default function LoginPage() {
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    logo: {
+        width: "100%",
+        maxWidth: 480,
+        height: 220,
+        maxHeight: "40%",
+        alignSelf: "center",
+        marginBottom: 6,
+    },
+});
