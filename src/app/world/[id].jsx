@@ -443,27 +443,25 @@ export default function WorldPage() {
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tileActionContent}>
                 <Text style={styles.bubbleTitle}>Expand Tile</Text>
                 <View style={styles.expandPad}>
-                  <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                  <TouchableOpacity style={[styles.expandPadBtn, styles.expandNorth]} onPress={async () => {
                     await expandFromSelectedTile("north");
                     closeTileActionPanel();
                   }}>
                     <Text style={styles.expandPadText}>N</Text>
                   </TouchableOpacity>
-                  <View style={styles.expandPadRow}>
-                    <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
-                      await expandFromSelectedTile("west");
-                      closeTileActionPanel();
-                    }}>
-                      <Text style={styles.expandPadText}>W</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
-                      await expandFromSelectedTile("east");
-                      closeTileActionPanel();
-                    }}>
-                      <Text style={styles.expandPadText}>E</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                  <TouchableOpacity style={[styles.expandPadBtn, styles.expandWest]} onPress={async () => {
+                    await expandFromSelectedTile("west");
+                    closeTileActionPanel();
+                  }}>
+                    <Text style={styles.expandPadText}>W</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.expandPadBtn, styles.expandEast]} onPress={async () => {
+                    await expandFromSelectedTile("east");
+                    closeTileActionPanel();
+                  }}>
+                    <Text style={styles.expandPadText}>E</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.expandPadBtn, styles.expandSouth]} onPress={async () => {
                     await expandFromSelectedTile("south");
                     closeTileActionPanel();
                   }}>
@@ -643,10 +641,14 @@ const styles = StyleSheet.create({
   floatingActionWrapper: { position: "absolute", top: "40%", left: "50%", transform: [{ translateX: -110 }, { translateY: -50 }], zIndex: 9999 },
   floatingBubble: { backgroundColor: "rgba(15, 23, 42, 0.95)", padding: 14, borderRadius: 20, width: 230, alignItems: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.15)", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 10 },
   bubbleTitle: { color: "#94a3b8", fontSize: 11, fontWeight: "800", textTransform: "uppercase", marginBottom: 10, letterSpacing: 0.5 },
-  expandPad: { alignItems: "center", width: "100%", marginBottom: 14 },
+  expandPad: { width: 132, height: 120, marginBottom: 14, position: "relative" },
   expandPadRow: { flexDirection: "row", gap: 34, marginVertical: 6 },
-  expandPadBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#2563eb", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  expandPadText: { color: "#fff", fontWeight: "900", fontSize: 14 },
+  expandPadBtn: { position: "absolute", width: 38, height: 38, borderRadius: 8, backgroundColor: "#2563eb", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 3, transform: [{ rotate: "45deg" }] },
+  expandNorth: { left: 47, top: 4, backgroundColor: "#38BDF8" },
+  expandWest: { left: 16, top: 41, backgroundColor: "#60A5FA" },
+  expandEast: { right: 16, top: 41, backgroundColor: "#2563EB" },
+  expandSouth: { left: 47, bottom: 4, backgroundColor: "#1D4ED8" },
+  expandPadText: { color: "#fff", fontWeight: "900", fontSize: 13, transform: [{ rotate: "-45deg" }] },
   bubbleRow: { width: "100%", gap: 8 },
   bubbleBtn: { width: "100%", height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   spinColor: { backgroundColor: "#3b82f6" },

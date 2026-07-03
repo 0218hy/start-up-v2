@@ -17,7 +17,7 @@ export default function NookletLoading({ message = "Loading Nooklet..." }) {
           player={loadingVideoPlayer}
           style={styles.video}
           nativeControls={false}
-          contentFit="contain"
+          contentFit="cover"
           allowsFullscreen={false}
           allowsPictureInPicture={false}
           playsInline
