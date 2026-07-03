@@ -2,10 +2,11 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import RevealActionButton from "../../components/chat/RevealActionButton";
 import RevealModal from "../../components/chat/RevealModal";
+import NookletLoading from "../../components/nooklet/NookletLoading";
 
 export default function ChatScreen() {
     const { id: worldId } = useLocalSearchParams();
@@ -183,18 +184,14 @@ export default function ChatScreen() {
     }
 
     if (loading) {
-        return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#EA580C" />
-            </View>
-        );
+        return <NookletLoading message="Opening secret whispers..." />;
     }
 
     return (
         <SafeAreaView style={styles.screenWrapper} edges={["top", "bottom"]}>
             {/* HEADER SECTION */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => router.replace(`/world/${worldId}`)}>
                     <Text style={styles.backBtnText}>← World</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>🔒 Secret Whispers</Text>

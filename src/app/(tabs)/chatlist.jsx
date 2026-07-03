@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { SafeAreaView } from "react-native-safe-area-context";
+import NookletLoading from "../../components/nooklet/NookletLoading";
+import NookletPage from "../../components/nooklet/NookletPage";
 
 export default function ChatListScreen() {
   const [chats, setChats] = useState([]);
@@ -38,15 +39,11 @@ export default function ChatListScreen() {
   }, [user]);
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="small" color="#94a3b8" />
-      </View>
-    );
+    return <NookletLoading message="Loading your channels..." />;
   }
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.container}>
+    <NookletPage contentStyle={styles.container}>
       <View style={styles.headerSection}>
         <Text style={styles.mainHeading}>Your Private Channels</Text>
         <Text style={styles.subHeading}>Select a secure workspace to view active communications.</Text>
@@ -82,14 +79,13 @@ export default function ChatListScreen() {
           );
         }}
       />
-    </SafeAreaView>
+    </NookletPage>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc", // Muted modern off-white to match lobby
   },
   centerContainer: {
     flex: 1,
@@ -103,14 +99,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   mainHeading: {
+    fontFamily: "SuperJoyful",
     fontSize: 24,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#431407",
     letterSpacing: -0.5,
   },
   subHeading: {
     fontSize: 14,
-    color: "#64748b",
+    color: "#9A3412",
     marginTop: 4,
   },
   listContent: {
@@ -127,20 +124,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#FDBA74",
   },
   chatInfo: {
     flex: 1,
     justifyContent: "center",
   },
   worldName: {
-    color: "#0f172a",
+    color: "#431407",
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: -0.3,
   },
   chatPreview: {
-    color: "#64748b",
+    color: "#9A3412",
     fontSize: 12,
     fontWeight: "500",
     marginTop: 3,
@@ -170,7 +167,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   emptyText: {
-    color: "#64748b",
+    color: "#9A3412",
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,

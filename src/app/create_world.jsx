@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { View, TextInput, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from "react-native";
+import { View, TextInput, Text, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors, Fonts, Spacing } from "../constants/theme"; // Adjust path to your theme.js
 import { persistInitialWorldTiles } from "../utils/worldTileSeed";
+import NookletLoading from "../components/nooklet/NookletLoading";
+import NookletPage from "../components/nooklet/NookletPage";
 
 export default function CreateWorld() {
   const [name, setName] = useState("");
@@ -81,13 +81,17 @@ export default function CreateWorld() {
     }
   }
 
+  if (loading) {
+    return <NookletLoading message="Creating your world..." />;
+  }
+
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+    <NookletPage contentStyle={styles.container}>
       {/* Top Header Back Button Bar Layout */}
       <View style={styles.headerBar}>
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => router.back()}
+          onPress={() => router.replace("/lobby")}
           style={styles.backButton}
         >
           <Text style={styles.backButtonText}>← Back to Lounge</Text>
@@ -114,26 +118,20 @@ export default function CreateWorld() {
           onPress={create}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Create Environment</Text>
-          )}
+          <Text style={styles.submitButtonText}>Create Environment</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </NookletPage>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background, // #fcfaff Lavender-Cream
   },
   headerBar: {
     width: "100%",
-    paddingHorizontal: Spacing.four,
-    marginTop: Spacing.two,
+    marginTop: 8,
   },
   backButton: {
     height: 44,
@@ -141,30 +139,27 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   backButtonText: {
-    color: Colors.light.textSecondary, // #6366f1 Indigo Accent
-    fontFamily: Fonts.rounded,
+    color: "#9A3412",
     fontSize: 15,
     fontWeight: "600",
   },
   contentBlock: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
     justifyContent: "center",
     marginTop: -60, // Visually centers layout on the screen
   },
   mainHeading: {
-    color: Colors.light.text, // #1e1b4b Deep indigo
+    color: "#431407",
     fontSize: 26,
     fontWeight: "700",
-    fontFamily: Fonts.rounded,
+    fontFamily: "SuperJoyful",
     letterSpacing: -0.5,
   },
   subHeading: {
     color: "#64748b",
     fontSize: 14,
-    fontFamily: Fonts.rounded,
-    marginTop: Spacing.one,
-    marginBottom: Spacing.four,
+    marginTop: 8,
+    marginBottom: 24,
     lineHeight: 20,
   },
   textInputField: {
@@ -172,14 +167,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.backgroundElement, // #f3e8ff Soft Purple
-    paddingHorizontal: Spacing.three,
-    color: Colors.light.text,
+    borderColor: "#FDBA74",
+    paddingHorizontal: 16,
+    color: "#431407",
     fontSize: 16,
-    fontFamily: Fonts.rounded,
     fontWeight: "600",
-    marginBottom: Spacing.three,
-    shadowColor: Colors.light.text,
+    marginBottom: 16,
+    shadowColor: "#7C2D12",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
     shadowRadius: 4,
@@ -187,11 +181,13 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 52,
-    backgroundColor: Colors.light.accent, // #34d399 Healing Mint Green
-    borderRadius: 12,
+    backgroundColor: "#EA580C",
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: Colors.light.accent,
+    borderWidth: 1,
+    borderColor: "#9A3412",
+    shadowColor: "#9A3412",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -204,6 +200,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
-    fontFamily: Fonts.rounded,
+    fontFamily: "SuperJoyful",
   },
 });

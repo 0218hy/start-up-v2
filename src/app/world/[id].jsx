@@ -2,7 +2,7 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { Suspense, useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as THREE from "three";
 
@@ -13,10 +13,12 @@ import Player from "../../components/Player";
 import InventoryBar from "../../components/world/InventoryBar";
 import SecretChatButton from "../../components/world/SecretChatButton";
 import TileMap from "../../components/world/TileMap";
+import NookletLoading from "../../components/nooklet/NookletLoading";
 
 // Global Stores & Hooks
 import { useAuthStore } from "@/stores/authStore";
 import { usePlayerStore } from "@/stores/playerStore";
+import { supabase } from "../../lib/supabase";
 import { useWorldTiles } from "../../hooks/useWorldTiles";
 import { useBuildStore } from "../../stores/buildStore";
 import { fromIso } from "../../utils/iso";
@@ -92,6 +94,9 @@ export default function WorldPage() {
   const { id: worldId } = useLocalSearchParams();
   const router = useRouter();
   const [draggedItemId, setDraggedItemId] = useState(null);
+  const [activeSidePanel, setActiveSidePanel] = useState(null);
+  const [chatPreviewMessages, setChatPreviewMessages] = useState([]);
+  const [isChatPreviewLoading, setIsChatPreviewLoading] = useState(false);
   const canvasMapperRef = useRef(null);
   const dragTargetGridRef = useRef(null);
   const tileTapTimeoutRef = useRef(null);
@@ -110,9 +115,12 @@ export default function WorldPage() {
 
   const user = useAuthStore((s) => s.user);
   const selectedItemId = useBuildStore((s) => s.selectedItemId);
+  const setBuildMode = useBuildStore((s) => s.setBuildMode);
   const resetBuild = useBuildStore((s) => s.resetBuild);
   const selectedWorldTile = useBuildStore((s) => s.selectedWorldTile);
   const selectWorldTile = useBuildStore((s) => s.selectWorldTile);
+  const playerGridX = usePlayerStore((s) => s.gridX);
+  const playerGridZ = usePlayerStore((s) => s.gridZ);
   const pathQueueLength = usePlayerStore((s) => s.pathQueue.length);
   const setPlayerPath = usePlayerStore((s) => s.setPath);
   const advancePathStep = usePlayerStore((s) => s.advancePathStep);
@@ -124,6 +132,50 @@ export default function WorldPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (activeSidePanel !== "chat" || !worldId || !user?.id) return;
+
+    let cancelled = false;
+
+    async function loadChatPreview() {
+      try {
+        setIsChatPreviewLoading(true);
+        const { data, error } = await supabase
+          .from("messages")
+          .select("id, sender_id, text_content, created_at")
+          .eq("world_id", worldId)
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (error) throw error;
+        if (!cancelled) {
+          setChatPreviewMessages([...(data || [])].reverse());
+        }
+      } catch (err) {
+        console.error("Failed loading chat preview:", err.message);
+        if (!cancelled) setChatPreviewMessages([]);
+      } finally {
+        if (!cancelled) setIsChatPreviewLoading(false);
+      }
+    }
+
+    loadChatPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSidePanel, user?.id, worldId]);
+
+  useEffect(() => {
+    if (activeSidePanel !== "tile") return;
+
+    const currentTile = tiles.find((tile) => tile.grid_x === playerGridX && tile.grid_z === playerGridZ);
+    if (currentTile) {
+      selectWorldTile(currentTile);
+    }
+  }, [activeSidePanel, playerGridX, playerGridZ, selectWorldTile, tiles]);
 
   useEffect(() => {
     if (pathQueueLength === 0) return;
@@ -138,7 +190,10 @@ export default function WorldPage() {
   const handleItemDeployment = () => {
     if (!selectedItemId) return;
     const { gridX, gridZ } = usePlayerStore.getState();
-    placeItem(gridX, gridZ, selectedItemId, resetBuild);
+    placeItem(gridX, gridZ, selectedItemId, () => {
+      resetBuild();
+      setActiveSidePanel(null);
+    });
   };
 
   const hasTileAt = (gridX, gridZ) => (
@@ -186,6 +241,8 @@ export default function WorldPage() {
       lastTileTapRef.current = null;
       const tappedTile = getTileAtGrid(targetX, targetZ);
       if (tappedTile) {
+        setActiveSidePanel("tile");
+        setBuildMode(false);
         selectWorldTile(tappedTile);
       }
       return;
@@ -242,9 +299,41 @@ export default function WorldPage() {
 
     if (!targetGrid) return;
 
-    placeItem(clampGrid(targetGrid.x), clampGrid(targetGrid.z), itemId, resetBuild);
+    placeItem(clampGrid(targetGrid.x), clampGrid(targetGrid.z), itemId, () => {
+      resetBuild();
+      setActiveSidePanel(null);
+    });
     setDraggedItemId(null);
   };
+
+  const openChatPreview = () => {
+    setActiveSidePanel((currentPanel) => currentPanel === "chat" ? null : "chat");
+    setBuildMode(false);
+    selectWorldTile(null);
+  };
+
+  const toggleInventoryPanel = () => {
+    selectWorldTile(null);
+    setActiveSidePanel((currentPanel) => {
+      const nextPanel = currentPanel === "inventory" ? null : "inventory";
+      setBuildMode(nextPanel === "inventory");
+      return nextPanel;
+    });
+  };
+
+  const openCurrentTileActions = () => {
+    setActiveSidePanel("tile");
+    setBuildMode(false);
+    const { gridX, gridZ } = usePlayerStore.getState();
+    const currentTile = getTileAtGrid(gridX, gridZ);
+    if (currentTile) {
+      selectWorldTile(currentTile);
+    }
+  };
+
+  if (isLoadingTiles && tiles.length === 0) {
+    return <NookletLoading message="Preparing your world..." />;
+  }
 
   const expandFromSelectedTile = async (direction) => {
     if (!selectedWorldTile) return;
@@ -262,6 +351,13 @@ export default function WorldPage() {
     await fillPathTiles([{ x: targetX, z: targetZ }]);
   };
 
+  const closeTileActionPanel = () => {
+    selectWorldTile(null);
+    setActiveSidePanel(null);
+  };
+
+  const isRightPanelOpen = activeSidePanel === "chat" || activeSidePanel === "inventory" || activeSidePanel === "tile";
+
   return (
     <View style={styles.container}>
       <>
@@ -269,10 +365,32 @@ export default function WorldPage() {
           <Image source={flowerBottomRight} style={styles.flowerAccent} resizeMode="contain" />
 
           <SafeAreaView edges={["top"]} style={styles.absoluteHeader}>
-            <TouchableOpacity activeOpacity={0.7} style={styles.backButton} onPress={() => router.back()}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.backButton} onPress={() => router.replace("/lobby")}>
               <Text style={styles.backButtonText}>← Leave</Text>
             </TouchableOpacity>
-            <SecretChatButton worldId={worldId} user={user} />
+          </SafeAreaView>
+
+          <SafeAreaView edges={["bottom"]} style={styles.bottomLeftDock}>
+            <SecretChatButton
+              worldId={worldId}
+              user={user}
+              iconOnly
+              onOpenPreview={openChatPreview}
+            />
+            <TouchableOpacity
+              activeOpacity={0.82}
+              style={[styles.hudIconButton, activeSidePanel === "inventory" && styles.activeHudIconButton]}
+              onPress={toggleInventoryPanel}
+            >
+              <Text style={styles.hudIconText}>🎒</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.82}
+              style={[styles.hudIconButton, activeSidePanel === "tile" && styles.activeHudIconButton]}
+              onPress={openCurrentTileActions}
+            >
+              <Text style={styles.hudIconText}>🛠️</Text>
+            </TouchableOpacity>
           </SafeAreaView>
 
           {/* 3D Environment */}
@@ -295,7 +413,7 @@ export default function WorldPage() {
                 />
                 <Player />
               </Suspense>
-              <CameraRig />
+              <CameraRig avoidRightPanel={isRightPanelOpen} />
             </Canvas>
           </View>
 
@@ -307,24 +425,48 @@ export default function WorldPage() {
             </View>
           )}
 
-          {/* 🚀 FLOATING OVERLAY HUD ACTION BUTTONS */}
-          {selectedWorldTile && (
-            <View style={styles.floatingActionWrapper}>
-              <View style={styles.floatingBubble}>
+          {selectedWorldTile && activeSidePanel === "tile" && (
+            <View style={styles.tileActionPanel}>
+              <View style={styles.sidePanelHeader}>
+                <Text style={styles.sidePanelEmoji}>🛠️</Text>
+                <TouchableOpacity
+                  style={styles.sidePanelClose}
+                  onPress={() => {
+                    selectWorldTile(null);
+                    setActiveSidePanel(null);
+                  }}
+                >
+                  <Text style={styles.sidePanelCloseText}>×</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tileActionContent}>
                 <Text style={styles.bubbleTitle}>Expand Tile</Text>
                 <View style={styles.expandPad}>
-                  <TouchableOpacity style={styles.expandPadBtn} onPress={() => expandFromSelectedTile("north")}>
+                  <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                    await expandFromSelectedTile("north");
+                    closeTileActionPanel();
+                  }}>
                     <Text style={styles.expandPadText}>N</Text>
                   </TouchableOpacity>
                   <View style={styles.expandPadRow}>
-                    <TouchableOpacity style={styles.expandPadBtn} onPress={() => expandFromSelectedTile("west")}>
+                    <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                      await expandFromSelectedTile("west");
+                      closeTileActionPanel();
+                    }}>
                       <Text style={styles.expandPadText}>W</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.expandPadBtn} onPress={() => expandFromSelectedTile("east")}>
+                    <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                      await expandFromSelectedTile("east");
+                      closeTileActionPanel();
+                    }}>
                       <Text style={styles.expandPadText}>E</Text>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity style={styles.expandPadBtn} onPress={() => expandFromSelectedTile("south")}>
+                  <TouchableOpacity style={styles.expandPadBtn} onPress={async () => {
+                    await expandFromSelectedTile("south");
+                    closeTileActionPanel();
+                  }}>
                     <Text style={styles.expandPadText}>S</Text>
                   </TouchableOpacity>
                 </View>
@@ -336,21 +478,27 @@ export default function WorldPage() {
                     <View style={styles.bubbleRow}>
                       <TouchableOpacity
                         style={[styles.bubbleBtn, styles.spinColor]}
-                        onPress={() => rotatePlacedFurniture(
-                          selectedWorldTile.grid_x,
-                          selectedWorldTile.grid_z,
-                          selectedWorldTile.furniture_rotation
-                        )}
+                        onPress={async () => {
+                          await rotatePlacedFurniture(
+                            selectedWorldTile.grid_x,
+                            selectedWorldTile.grid_z,
+                            selectedWorldTile.furniture_rotation
+                          );
+                          closeTileActionPanel();
+                        }}
                       >
                         <Text style={styles.bubbleBtnText}>🔄 Spin</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={[styles.bubbleBtn, styles.deleteColor]}
-                        onPress={() => deletePlacedFurniture(
-                          selectedWorldTile.grid_x,
-                          selectedWorldTile.grid_z
-                        )}
+                        onPress={async () => {
+                          await deletePlacedFurniture(
+                            selectedWorldTile.grid_x,
+                            selectedWorldTile.grid_z
+                          );
+                          closeTileActionPanel();
+                        }}
                       >
                         <Text style={styles.bubbleBtnText}>🗑️ Remove</Text>
                       </TouchableOpacity>
@@ -363,10 +511,13 @@ export default function WorldPage() {
                     <View style={styles.bubbleRow}>
                       <TouchableOpacity
                         style={[styles.bubbleBtn, styles.deleteColor]}
-                        onPress={() => deleteTile(
-                          selectedWorldTile.grid_x,
-                          selectedWorldTile.grid_z
-                        )}
+                        onPress={async () => {
+                          await deleteTile(
+                            selectedWorldTile.grid_x,
+                            selectedWorldTile.grid_z
+                          );
+                          closeTileActionPanel();
+                        }}
                       >
                         <Text style={styles.bubbleBtnText}>🗑️ Delete Tile</Text>
                       </TouchableOpacity>
@@ -376,18 +527,70 @@ export default function WorldPage() {
 
                 <TouchableOpacity
                   style={styles.bubbleClose}
-                  onPress={() => selectWorldTile(null)}
+                  onPress={() => {
+                    selectWorldTile(null);
+                    setActiveSidePanel(null);
+                  }}
                 >
                   <Text style={styles.closeText}>Cancel</Text>
                 </TouchableOpacity>
+              </ScrollView>
+            </View>
+          )}
+
+          {activeSidePanel === "chat" && (
+            <View style={styles.chatPreviewPanel}>
+              <View style={styles.sidePanelHeader}>
+                <Text style={styles.sidePanelEmoji}>💬</Text>
+                <TouchableOpacity style={styles.sidePanelClose} onPress={() => setActiveSidePanel(null)}>
+                  <Text style={styles.sidePanelCloseText}>×</Text>
+                </TouchableOpacity>
               </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.chatPreviewContent}
+              >
+                {isChatPreviewLoading ? (
+                  <Text style={styles.chatPreviewMeta}>...</Text>
+                ) : chatPreviewMessages.length === 0 ? (
+                  <Text style={styles.chatPreviewMeta}>No whispers yet.</Text>
+                ) : (
+                  chatPreviewMessages.map((message) => {
+                    const isMe = message.sender_id === user?.id;
+                    return (
+                      <View
+                        key={message.id}
+                        style={[styles.previewBubble, isMe ? styles.previewBubbleMine : styles.previewBubbleTheirs]}
+                      >
+                        <Text
+                          style={[styles.previewBubbleText, isMe ? styles.previewBubbleTextMine : styles.previewBubbleTextTheirs]}
+                          numberOfLines={3}
+                        >
+                          {message.text_content}
+                        </Text>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.openChatButton}
+                onPress={() => router.push(`/chat/${worldId}`)}
+              >
+                <Text style={styles.openChatButtonText}>💬</Text>
+              </TouchableOpacity>
             </View>
           )}
 
           <InventoryBar
+            variant="side"
             onPlaceClick={handleItemDeployment}
             onItemDragStart={setDraggedItemId}
             onItemDragEnd={() => setDraggedItemId(null)}
+            onClose={() => setActiveSidePanel(null)}
           />
           <Controls />
       </>
@@ -407,6 +610,27 @@ const styles = StyleSheet.create({
   absoluteHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 99, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { backgroundColor: "rgba(30, 41, 59, 0.9)", minWidth: 100, height: 48, justifyContent: "center", alignItems: "center", borderRadius: 24, borderWidth: 1.5, borderColor: "#334155", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 },
   backButtonText: { color: "#cbd5e1", fontWeight: "700", fontSize: 14 },
+  bottomLeftDock: { position: "absolute", left: 16, bottom: 18, zIndex: 100000, flexDirection: "row", gap: 10, alignItems: "center" },
+  hudIconButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#FEF08A", borderWidth: 1.5, borderColor: "#CA8A04", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 4, elevation: 6 },
+  activeHudIconButton: { backgroundColor: "#FDBA74", borderColor: "#EA580C" },
+  hudIconText: { fontSize: 22 },
+  chatPreviewPanel: { position: "absolute", top: 92, right: 14, bottom: 160, width: 172, zIndex: 99998, backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: 22, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", padding: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 10 },
+  tileActionPanel: { position: "absolute", top: 92, right: 14, bottom: 160, width: 172, zIndex: 99998, backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: 22, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", padding: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 10 },
+  sidePanelHeader: { height: 32, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  sidePanelEmoji: { fontSize: 20 },
+  sidePanelClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.12)", justifyContent: "center", alignItems: "center" },
+  sidePanelCloseText: { color: "#fff", fontSize: 18, fontWeight: "800", lineHeight: 20 },
+  chatPreviewContent: { gap: 8, paddingBottom: 8 },
+  tileActionContent: { alignItems: "center", paddingBottom: 8 },
+  chatPreviewMeta: { color: "#CBD5E1", fontSize: 12, fontWeight: "700", textAlign: "center", marginTop: 20 },
+  previewBubble: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1 },
+  previewBubbleMine: { backgroundColor: "#FEF08A", borderColor: "#CA8A04", alignSelf: "flex-end" },
+  previewBubbleTheirs: { backgroundColor: "#EA580C", borderColor: "#9A3412", alignSelf: "flex-start" },
+  previewBubbleText: { fontSize: 11, lineHeight: 15, fontWeight: "700" },
+  previewBubbleTextMine: { color: "#431407" },
+  previewBubbleTextTheirs: { color: "#FFFFFF" },
+  openChatButton: { height: 40, borderRadius: 16, backgroundColor: "#FEF08A", borderWidth: 1.5, borderColor: "#CA8A04", justifyContent: "center", alignItems: "center", marginTop: 8 },
+  openChatButtonText: { fontSize: 18 },
   expansionPanel: { position: "absolute", right: 16, zIndex: 20, backgroundColor: "rgba(15, 23, 42, 0.85)", padding: 12, borderRadius: 16, alignItems: "center", borderWidth: 1, borderColor: "#334155" },
   compactExpansionPanel: { right: 12, padding: 8 },
   panelTitle: { color: "#94a3b8", fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
@@ -423,8 +647,8 @@ const styles = StyleSheet.create({
   expandPadRow: { flexDirection: "row", gap: 34, marginVertical: 6 },
   expandPadBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#2563eb", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   expandPadText: { color: "#fff", fontWeight: "900", fontSize: 14 },
-  bubbleRow: { flexDirection: "row", justifyContent: "space-between", width: "100%", gap: 8 },
-  bubbleBtn: { flex: 1, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  bubbleRow: { width: "100%", gap: 8 },
+  bubbleBtn: { width: "100%", height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   spinColor: { backgroundColor: "#3b82f6" },
   deleteColor: { backgroundColor: "#ef4444" },
   bubbleBtnText: { color: "#fff", fontWeight: "bold", fontSize: 13 },

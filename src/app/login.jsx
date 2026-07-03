@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, Image, StyleSheet, TextInput, View, Text, Alert } from "react-native";
+import { Image, StyleSheet, TextInput, View, Text, Alert, TouchableOpacity } from "react-native";
 import { supabase } from "../lib/supabase";
+import NookletLoading from "../components/nooklet/NookletLoading";
+import NookletPage from "../components/nooklet/NookletPage";
 
 const nookletLogo = require("../assets/images/nooklet/nooklet_logo.png");
 
@@ -121,20 +123,24 @@ export default function LoginPage() {
         }
     }
 
+    if (loading) {
+        return <NookletLoading message="Opening your character..." />;
+    }
+
     return (
-        <View style={{ padding: 20, justifyContent: 'center', flex: 1, backgroundColor: '#111' }}>
+        <NookletPage contentStyle={styles.pageContent}>
             <Image source={nookletLogo} style={styles.logo} resizeMode="contain" />
-            <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+            <Text style={styles.title}>
                 Nooklet
             </Text>
 
             <TextInput
                 placeholder="Username"
-                placeholderTextColor="#666"
+                placeholderTextColor="#9A3412"
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
-                style={{ borderBottomWidth: 1, borderColor: '#444', color: '#fff', padding: 8, fontSize: 16 }}
+                style={styles.input}
             />
             {isCheckingUsername && <Text style={{ color: 'gray', fontSize: 12, marginTop: 4 }}>Checking availability...</Text>}
             {!isCheckingUsername && usernameError ? (
@@ -150,34 +156,34 @@ export default function LoginPage() {
 
             <TextInput
                 placeholder="Password"
-                placeholderTextColor="#666"
+                placeholderTextColor="#9A3412"
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
                 autoCapitalize="none"
-                style={{ borderBottomWidth: 1, borderColor: '#444', color: '#fff', marginBottom: 25, padding: 8, fontSize: 16 }}
+                style={styles.input}
             />
 
-            <Button
-                title={loading ? "Loading..." : "Login"}
-                onPress={signIn}
-                disabled={loading}
-                color="#38bdf8"
-            />
+            <TouchableOpacity activeOpacity={0.85} style={[styles.button, styles.loginButton]} onPress={signIn}>
+                <Text style={styles.buttonTextLight}>Login</Text>
+            </TouchableOpacity>
 
-            <View style={{ height: 12 }} />
-
-            <Button
-                title={loading ? "Loading..." : "Register New Character"}
+            <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.button, styles.registerButton, usernameError.includes("❌") && styles.disabledButton]}
                 onPress={signUp}
-                disabled={loading || usernameError.includes("❌")}
-                color="#22c55e"
-            />
-        </View>
+                disabled={usernameError.includes("❌")}
+            >
+                <Text style={styles.buttonTextDark}>Register New Character</Text>
+            </TouchableOpacity>
+        </NookletPage>
     );
 }
 
 const styles = StyleSheet.create({
+    pageContent: {
+        justifyContent: "center",
+    },
     logo: {
         width: "100%",
         maxWidth: 480,
@@ -185,5 +191,58 @@ const styles = StyleSheet.create({
         maxHeight: "40%",
         alignSelf: "center",
         marginBottom: 6,
+    },
+    title: {
+        fontFamily: "SuperJoyful",
+        color: "#431407",
+        fontSize: 34,
+        marginBottom: 20,
+        textAlign: "center",
+    },
+    input: {
+        height: 54,
+        borderRadius: 14,
+        borderWidth: 2,
+        borderColor: "#FDBA74",
+        backgroundColor: "rgba(255,255,255,0.9)",
+        color: "#431407",
+        paddingHorizontal: 16,
+        fontSize: 16,
+        fontWeight: "700",
+        marginBottom: 14,
+    },
+    button: {
+        height: 56,
+        borderRadius: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1,
+        marginTop: 12,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+    },
+    loginButton: {
+        backgroundColor: "#EA580C",
+        borderColor: "#9A3412",
+        shadowColor: "#9A3412",
+    },
+    registerButton: {
+        backgroundColor: "#FEF08A",
+        borderColor: "#CA8A04",
+        shadowColor: "#CA8A04",
+    },
+    disabledButton: {
+        opacity: 0.55,
+    },
+    buttonTextLight: {
+        fontFamily: "SuperJoyful",
+        color: "#FFFFFF",
+        fontSize: 18,
+    },
+    buttonTextDark: {
+        fontFamily: "SuperJoyful",
+        color: "#431407",
+        fontSize: 18,
     },
 });

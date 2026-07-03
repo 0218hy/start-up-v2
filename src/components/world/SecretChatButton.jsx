@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { generateAngelMortalPairs } from "../../utils/generateAngelMortal";
 
-export default function SecretChatButton({ worldId, user }) {
+export default function SecretChatButton({ worldId, user, iconOnly = false, onOpenPreview }) {
     const router = useRouter();
 
     const [showSetupModal, setShowSetupModal] = useState(false);
@@ -27,7 +27,11 @@ export default function SecretChatButton({ worldId, user }) {
             if (error) throw error;
 
             if (assignment) {
-                router.push(`/chat/${worldId}`);
+                if (onOpenPreview) {
+                    onOpenPreview();
+                } else {
+                    router.push(`/chat/${worldId}`);
+                }
             } else {
                 setShowSetupModal(true);
             }
@@ -82,7 +86,7 @@ export default function SecretChatButton({ worldId, user }) {
                 {loading ? (
                     <ActivityIndicator size="small" color="#431407" />
                 ) : (
-                    <Text style={styles.btnText}>🔒 Secret Chat</Text>
+                    <Text style={styles.btnText}>{iconOnly ? "💬" : "🔒 Secret Chat"}</Text>
                 )}
             </TouchableOpacity>
 
@@ -152,8 +156,8 @@ export default function SecretChatButton({ worldId, user }) {
 }
 
 const styles = StyleSheet.create({
-    secretChatBtn: { backgroundColor: "#FEF08A", borderWidth: 1.5, borderColor: "#CA8A04", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 24, minWidth: 130, alignItems: "center" },
-    btnText: { fontFamily: "SuperJoyful", color: "#431407", fontSize: 14 },
+    secretChatBtn: { backgroundColor: "#FEF08A", borderWidth: 1.5, borderColor: "#CA8A04", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+    btnText: { fontFamily: "SuperJoyful", color: "#431407", fontSize: 20 },
 
     // Core Layout Structural Elements
     modalOverlay: { flex: 1, backgroundColor: "rgba(43, 13, 7, 0.6)", justifyContent: "center", alignItems: "center", padding: 24 },

@@ -3,11 +3,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import NookletLoading from "../../components/nooklet/NookletLoading";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorldCard from "../../components/lobby/WorldCard";
 import { supabase } from "../../lib/supabase";
-import { loadingVideoSource, startVideoSource, waitingVideoSource } from "../../utils/introVideo";
+import { startVideoSource, waitingVideoSource } from "../../utils/introVideo";
 
 const flowerTopLeft = require("../../assets/images/nooklet/flower1.png");
 
@@ -20,11 +21,6 @@ export default function Landing() {
     const router = useRouter();
 
     const user = useAuthStore((state) => state.user);
-    const loadingVideoPlayer = useVideoPlayer(loadingVideoSource, (player) => {
-        player.loop = true;
-        player.muted = true;
-        player.play();
-    });
     const waitingVideoPlayer = useVideoPlayer(waitingVideoSource, (player) => {
         player.loop = true;
         player.muted = true;
@@ -103,20 +99,7 @@ export default function Landing() {
     };
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <VideoView
-                    player={loadingVideoPlayer}
-                    style={StyleSheet.absoluteFillObject}
-                    nativeControls={false}
-                    contentFit="contain"
-                    playsInline
-                />
-                <View style={styles.loadingScrim} />
-                <ActivityIndicator size="large" color="#F59E0B" />
-                <Text style={styles.loadingText}>Awakening your spaces...</Text>
-            </View>
-        );
+        return <NookletLoading message="Awakening your spaces..." />;
     }
 
     return (
@@ -167,7 +150,7 @@ export default function Landing() {
                     <TouchableOpacity
                         activeOpacity={0.85}
                         style={[styles.celShadedButton, styles.createBtn]}
-                        onPress={() => router.push("../create_world")}
+                        onPress={() => router.push("/create_world")}
                     >
                         {/* Applied custom font mapping option to action targets */}
                         <Text style={styles.btnTextLight}>Create New Space</Text>
@@ -176,7 +159,7 @@ export default function Landing() {
                     <TouchableOpacity
                         activeOpacity={0.85}
                         style={[styles.celShadedButton, styles.joinBtn]}
-                        onPress={() => router.push("../join_world")}
+                        onPress={() => router.push("/join_world")}
                     >
                         <Text style={styles.btnTextDark}>Join Existing Space</Text>
                     </TouchableOpacity>
@@ -230,25 +213,6 @@ export default function Landing() {
 const styles = StyleSheet.create({
     flexContainer: {
         flex: 1,
-    },
-    loadingContainer: {
-        flex: 1,
-        backgroundColor: "#FFEDD5",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 12,
-    },
-    loadingScrim: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(67, 20, 7, 0.38)",
-    },
-    loadingText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "700",
-        textShadowColor: "rgba(67, 20, 7, 0.75)",
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 4,
     },
     scrollContent: {
         paddingHorizontal: 24,
@@ -313,7 +277,7 @@ const styles = StyleSheet.create({
     },
     actionDock: {
         paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingVertical: 18,
         backgroundColor: "rgba(255, 255, 255, 0.95)",
         borderTopWidth: 2,
         borderTopColor: "#FDBA74",
@@ -355,7 +319,7 @@ const styles = StyleSheet.create({
         height: 44,
         justifyContent: "center",
         alignItems: "center",
-        marginTop: 4,
+        marginTop: 2,
     },
     signOutText: {
         color: "#C2410C",

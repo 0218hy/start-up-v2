@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   joystickContainer: {
     position: "absolute",
     bottom: 40,
-    right: 24, // Positioned on the left side of the screen
+    right: 24,
     zIndex: 99,
   },
   outerRing: {
